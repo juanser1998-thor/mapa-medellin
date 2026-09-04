@@ -169,12 +169,15 @@ export default function Home() {
       maxPitch: 78,
     });
     mapRef.current = map;
+    const readyFallback = window.setTimeout(() => setReady(true), 6000);
     map.addControl(
       new maplibregl.NavigationControl({ visualizePitch: true }),
       'bottom-right',
     );
 
-    map.on('load', () => {
+    map.once('style.load', () => {
+      window.clearTimeout(readyFallback);
+      setReady(true);
       const vectorSource = Object.entries(map.getStyle().sources).find(
         ([, source]) => source.type === 'vector',
       )?.[0];
@@ -291,10 +294,10 @@ export default function Home() {
           map.getCanvas().style.cursor = '';
         });
       }
-      setReady(true);
     });
 
     return () => {
+      window.clearTimeout(readyFallback);
       map.remove();
       mapRef.current = null;
     };
@@ -391,6 +394,7 @@ export default function Home() {
       <div
         ref={containerRef}
         className="absolute inset-0"
+        style={{ position: 'absolute', inset: 0 }}
         aria-label="Mapa tridimensional interactivo de avalúos en Medellín"
       />
 
