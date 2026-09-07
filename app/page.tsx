@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap, MapLayerMouseEvent } from 'maplibre-gl';
-import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, Point } from 'geojson';
 import {
+  BadgeDollarSign,
   Building2,
   ChevronLeft,
   ChevronRight,
-  Layers3,
   LocateFixed,
   Pause,
   Play,
@@ -54,25 +54,31 @@ const cityView = {
   pitch: 58,
   bearing: -24,
 };
-const colors: Record<string, string> = {
-  APARTAMENTO: '#08b89d',
-  CASA: '#f49a43',
-  LOCAL: '#2e8de6',
-  OFICINA: '#7c5ce7',
-};
+const valueRanges = [
+  { label: 'Menos de $250 M', max: 250_000_000, color: '#19b58f' },
+  { label: '$250 M – $400 M', max: 400_000_000, color: '#278de0' },
+  { label: '$400 M – $800 M', max: 800_000_000, color: '#f2a33a' },
+  { label: 'Más de $800 M', max: Infinity, color: '#e64870' },
+];
 
-function circlePolygon(lng: number, lat: number, radiusMeters: number) {
-  const coordinates: [number, number][] = [];
-  const latScale = radiusMeters / 111320;
-  const lngScale = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
-  for (let i = 0; i <= 28; i += 1) {
-    const angle = (i / 28) * Math.PI * 2;
-    coordinates.push([
-      lng + Math.cos(angle) * lngScale,
-      lat + Math.sin(angle) * latScale,
-    ]);
-  }
-  return coordinates;
+function colorForValue(value: number) {
+  return valueRanges.find((range) => value < range.max)?.color ?? '#e64870';
+}
+
+function offsetDuplicatePoint(
+  lng: number,
+  lat: number,
+  index: number,
+  count: number,
+): [number, number] {
+  if (count === 1) return [lng, lat];
+  const radiusMeters = count > 5 ? 14 : 10;
+  const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
+  const latOffset = (Math.sin(angle) * radiusMeters) / 111320;
+  const lngOffset =
+    (Math.cos(angle) * radiusMeters) /
+    (111320 * Math.cos((lat * Math.PI) / 180));
+  return [lng + lngOffset, lat + latOffset];
 }
 
 function formatMoney(value: number) {
@@ -117,39 +123,27 @@ export default function Home() {
     return [...grouped.values()];
   }, []);
 
-  const geojson = useMemo<FeatureCollection<Polygon | Point>>(() => {
-    const features: Array<Feature<Polygon | Point>> = [];
+  const geojson = useMemo<FeatureCollection<Point>>(() => {
+    const features: Array<Feature<Point>> = [];
     for (const group of groups) {
-      const average =
-        group.records.reduce((sum, item) => sum + item.valor, 0) /
-        group.records.length;
-      const leadType = group.records[0].tipo;
-      const common = {
-        key: group.key,
-        count: group.records.length,
-        color: colors[leadType] ?? '#08b89d',
-        height: Math.round(
-          55 + Math.min(240, Math.log10(average / 1000000 + 1) * 72),
-        ),
-      };
-      features.push({
-        type: 'Feature',
-        properties: common,
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            circlePolygon(
+      group.records.forEach((record, index) => {
+        features.push({
+          type: 'Feature',
+          properties: {
+            id: record.id,
+            key: group.key,
+            color: colorForValue(record.valor),
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: offsetDuplicatePoint(
               group.lng,
               group.lat,
-              group.records.length > 1 ? 55 : 38,
+              index,
+              group.records.length,
             ),
-          ],
-        },
-      });
-      features.push({
-        type: 'Feature',
-        properties: common,
-        geometry: { type: 'Point', coordinates: [group.lng, group.lat] },
+          },
+        });
       });
     }
     return { type: 'FeatureCollection', features };
@@ -221,60 +215,66 @@ export default function Home() {
 
       map.addSource('avaluos-medellin', { type: 'geojson', data: geojson });
       map.addLayer({
-        id: 'avaluo-halos',
+        id: 'avaluo-glow',
         type: 'circle',
         source: 'avaluos-medellin',
-        filter: ['==', ['geometry-type'], 'Point'],
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 7, 16, 18],
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 0.2,
-          'circle-blur': 0.35,
-          'circle-stroke-color': ['get', 'color'],
-          'circle-stroke-width': 2,
-        },
-      });
-      map.addLayer({
-        id: 'avaluo-columns',
-        type: 'fill-extrusion',
-        source: 'avaluos-medellin',
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: {
-          'fill-extrusion-color': ['get', 'color'],
-          'fill-extrusion-height': ['get', 'height'],
-          'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.9,
-          'fill-extrusion-vertical-gradient': true,
-        },
-      });
-      map.addLayer({
-        id: 'avaluo-counts',
-        type: 'symbol',
-        source: 'avaluos-medellin',
-        filter: [
-          'all',
-          ['==', ['geometry-type'], 'Point'],
-          ['>', ['get', 'count'], 1],
-        ],
         layout: {
-          'text-field': ['to-string', ['get', 'count']],
-          'text-size': 14,
-          'text-offset': [0, -1.55],
-          'text-allow-overlap': true,
+          'circle-pitch-alignment': 'map',
+          'circle-pitch-scale': 'viewport',
         },
         paint: {
-          'text-color': '#0b2823',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 7, 16, 17],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.28,
+          'circle-blur': 0.55,
+        },
+      });
+      map.addLayer({
+        id: 'avaluo-points',
+        type: 'circle',
+        source: 'avaluos-medellin',
+        layout: {
+          'circle-pitch-alignment': 'map',
+          'circle-pitch-scale': 'viewport',
+        },
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10,
+            4.5,
+            16,
+            9,
+          ],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.98,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10,
+            1.5,
+            16,
+            3,
+          ],
         },
       });
 
       const selectFeature = (event: MapLayerMouseEvent) => {
-        const key = event.features?.[0]?.properties?.key as string | undefined;
-        if (!key) return;
+        const properties = event.features?.[0]?.properties;
+        const key = properties?.key as string | undefined;
+        const id = properties?.id as string | undefined;
+        if (!key || !id) return;
         const group = groups.find((item) => item.key === key);
         if (!group) return;
-        setRecordIndex(0);
+        setRecordIndex(
+          Math.max(
+            0,
+            group.records.findIndex((item) => item.id === id),
+          ),
+        );
         setSelectedKey(key);
         setTouring(false);
         map.flyTo({
@@ -285,9 +285,9 @@ export default function Home() {
           duration: 1100,
         });
       };
-      map.on('click', 'avaluo-columns', selectFeature);
-      map.on('click', 'avaluo-halos', selectFeature);
-      for (const layer of ['avaluo-columns', 'avaluo-halos']) {
+      map.on('click', 'avaluo-points', selectFeature);
+      map.on('click', 'avaluo-glow', selectFeature);
+      for (const layer of ['avaluo-points', 'avaluo-glow']) {
         map.on('mouseenter', layer, () => {
           map.getCanvas().style.cursor = 'pointer';
         });
@@ -411,7 +411,7 @@ export default function Home() {
             Avalúos que cuentan la ciudad
           </h1>
           <p className="mt-1 text-sm text-[#526762] md:text-base">
-            Toca una columna para explorar su valor y características.
+            Toca un punto para explorar su valor y características.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <span>
@@ -425,7 +425,7 @@ export default function Home() {
               ubicaciones
             </span>
             <span className="flex items-center gap-1.5 text-[#526762]">
-              <Layers3 className="size-4" /> altura = valor
+              <BadgeDollarSign className="size-4" /> color = valor
             </span>
           </div>
         </div>
@@ -452,16 +452,16 @@ export default function Home() {
 
       <div className="pointer-events-none absolute bottom-20 right-4 z-10 hidden rounded-xl border border-white/70 bg-white/88 px-3 py-2 text-xs shadow-md backdrop-blur-md sm:block md:bottom-7 md:right-20">
         <div className="mb-1.5 flex items-center gap-1.5 font-medium">
-          <Sparkles className="size-3.5 text-[#168a77]" /> Tipos de inmueble
+          <Sparkles className="size-3.5 text-[#168a77]" /> Valor comercial
         </div>
         <div className="flex flex-wrap gap-3 text-[#526762]">
-          {Object.entries(colors).map(([label, color]) => (
-            <span key={label} className="flex items-center gap-1.5">
+          {valueRanges.map((range) => (
+            <span key={range.label} className="flex items-center gap-1.5">
               <i
                 className="size-2.5 rounded-full"
-                style={{ background: color }}
+                style={{ background: range.color }}
               />
-              {label[0] + label.slice(1).toLowerCase()}
+              {range.label}
             </span>
           ))}
         </div>
@@ -492,7 +492,7 @@ export default function Home() {
                 <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">
                   <span
                     className="size-2 rounded-full"
-                    style={{ background: colors[selected.tipo] ?? '#08b89d' }}
+                    style={{ background: colorForValue(selected.valor) }}
                   />
                   Avalúo #{selected.id}
                 </div>
