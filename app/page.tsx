@@ -218,25 +218,19 @@ export default function Home() {
         id: 'avaluo-glow',
         type: 'circle',
         source: 'avaluos-medellin',
-        layout: {
-          'circle-pitch-alignment': 'map',
-          'circle-pitch-scale': 'viewport',
-        },
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 7, 16, 17],
           'circle-color': ['get', 'color'],
           'circle-opacity': 0.28,
           'circle-blur': 0.55,
+          'circle-pitch-alignment': 'map',
+          'circle-pitch-scale': 'viewport',
         },
       });
       map.addLayer({
         id: 'avaluo-points',
         type: 'circle',
         source: 'avaluos-medellin',
-        layout: {
-          'circle-pitch-alignment': 'map',
-          'circle-pitch-scale': 'viewport',
-        },
         paint: {
           'circle-radius': [
             'interpolate',
@@ -259,6 +253,8 @@ export default function Home() {
             16,
             3,
           ],
+          'circle-pitch-alignment': 'map',
+          'circle-pitch-scale': 'viewport',
         },
       });
 
