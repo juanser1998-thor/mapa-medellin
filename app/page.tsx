@@ -190,9 +190,6 @@ export default function Home() {
         ([, source]) => source.type === 'vector',
       )?.[0];
       if (vectorSource && !map.getLayer('city-buildings-3d')) {
-        const firstLabel = map
-          .getStyle()
-          .layers.find((layer) => layer.type === 'symbol')?.id;
         try {
           map.addLayer(
             {
@@ -224,7 +221,6 @@ export default function Home() {
                 'fill-extrusion-vertical-gradient': false,
               },
             },
-            firstLabel,
           );
         } catch {
           // El mapa continúa con la capa base si el proveedor cambia su esquema.
