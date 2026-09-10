@@ -100,6 +100,10 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
+function formatArea(value: number | null, unit = 'm²') {
+  return value === null ? 'Sin dato' : `${value.toLocaleString('es-CO', { maximumFractionDigits: 2 })} ${unit}`;
+}
+
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -216,7 +220,29 @@ export default function Home() {
         }
       }
 
-      map.addSource('avaluos-medellin', { type: 'geojson', data: geojson });
+      map.addSource('avaluos-medellin', {
+        type: 'geojson', data: geojson,
+        cluster: true, clusterRadius: 35, clusterMaxZoom: 16,
+      });
+      map.addLayer({
+        id: 'avaluo-clusters', type: 'circle', source: 'avaluos-medellin',
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-radius': ['step', ['get', 'point_count'], 20, 20, 25, 100, 31],
+          'circle-color': '#102d38', 'circle-opacity': 0.95,
+          'circle-stroke-color': '#58ead6', 'circle-stroke-width': 2.5,
+        },
+      });
+      map.addLayer({
+        id: 'avaluo-cluster-count', type: 'symbol', source: 'avaluos-medellin',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': ['to-string', ['get', 'point_count_abbreviated']],
+          'text-font': ['Noto Sans Regular'], 'text-size': 15,
+          'text-allow-overlap': true, 'text-ignore-placement': true,
+        },
+        paint: { 'text-color': '#ffffff' },
+      });
       for (const range of valueRanges) {
         map.addImage(`sphere-${range.color.slice(1)}`, neonSphere(range.color), { pixelRatio: 2 });
       }
@@ -224,6 +250,7 @@ export default function Home() {
         id: 'avaluo-glow',
         type: 'circle',
         source: 'avaluos-medellin',
+        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 16, 16, 25],
           'circle-color': ['get', 'color'],
@@ -237,6 +264,7 @@ export default function Home() {
         id: 'avaluo-points',
         type: 'symbol',
         source: 'avaluos-medellin',
+        filter: ['!', ['has', 'point_count']],
         layout: {
           'icon-image': ['get', 'icon'],
           'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.65, 16, 1, 19, 1.2],
@@ -264,15 +292,28 @@ export default function Home() {
         setTouring(false);
         map.flyTo({
           center: [group.lng, group.lat],
-          zoom: 15.6,
+          zoom: Math.max(map.getZoom(), 17.2),
           pitch: 66,
           bearing: -18,
           duration: 1100,
         });
       };
       map.on('click', 'avaluo-points', selectFeature);
-      map.on('click', 'avaluo-glow', selectFeature);
-      for (const layer of ['avaluo-points', 'avaluo-glow']) {
+      map.on('click', 'avaluo-clusters', async (event) => {
+        const feature = event.features?.[0];
+        if (!feature || feature.geometry.type !== 'Point') return;
+        setTouring(false);
+        const source = map.getSource('avaluos-medellin') as maplibregl.GeoJSONSource;
+        const center = feature.geometry.coordinates.slice(0, 2) as [number, number];
+        try {
+          const zoom = await source.getClusterExpansionZoom(Number(feature.properties?.cluster_id));
+          if (mapRef.current !== map) return;
+          map.flyTo({ center, zoom: Math.min(zoom + 0.4, 19), duration: 900 });
+        } catch {
+          if (mapRef.current === map) map.flyTo({ center, zoom: Math.min(map.getZoom() + 2, 19), duration: 900 });
+        }
+      });
+      for (const layer of ['avaluo-points', 'avaluo-clusters']) {
         map.on('mouseenter', layer, () => {
           map.getCanvas().style.cursor = 'pointer';
         });
@@ -303,7 +344,7 @@ export default function Home() {
       const stop = stops[index % stops.length];
       mapRef.current?.flyTo({
         center: [stop.lng, stop.lat],
-        zoom: 15.2,
+          zoom: 17.2,
         pitch: 64,
         bearing: -28 + index * 22,
         duration: 1800,
@@ -352,7 +393,7 @@ export default function Home() {
             setRecordIndex(group.records.findIndex((item) => item.id === id));
             mapRef.current?.flyTo({
               center: [group.lng, group.lat],
-              zoom: 15.6,
+              zoom: 17.2,
               pitch: 66,
               bearing: -18,
               duration: 1100,
@@ -398,17 +439,17 @@ export default function Home() {
             Avalúos que cuentan la ciudad
           </h1>
           <p className="mt-1 text-sm text-[#526762] md:text-base">
-            Toca una esfera para explorar el avalúo y su fachada.
+            Toca un grupo para acercarte o una esfera para abrir su avalúo.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <span>
               <strong className="text-lg font-medium">
-                {appraisals.length}
+                {appraisals.length.toLocaleString('es-CO')}
               </strong>{' '}
               avalúos
             </span>
             <span>
-              <strong className="text-lg font-medium">{groups.length}</strong>{' '}
+              <strong className="text-lg font-medium">{groups.length.toLocaleString('es-CO')}</strong>{' '}
               ubicaciones
             </span>
             <span className="flex items-center gap-1.5 text-[#526762]">
@@ -503,17 +544,13 @@ export default function Home() {
                 </p>
                 <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#dbe5e2]">
                   {[
-                    ['Área', `${selected.area.toLocaleString('es-CO')} m²`],
-                    [
-                      'Valor por m²',
-                      selected.area
-                        ? formatMoney(selected.valor / selected.area)
-                        : 'Sin dato',
-                    ],
+                    ['Área privada', formatArea(selected.areaPrivada)],
+                    ['Área construida', formatArea(selected.areaConstruida)],
+                    ['Área de terreno', formatArea(selected.areaTerreno, selected.unidad.toLowerCase() === 'ha' ? 'ha' : selected.unidad.toLowerCase() === 'm2' ? 'm²' : selected.unidad || 'm²')],
                     ['Fecha', formatDate(selected.fecha)],
                     ['Estrato', selected.estrato],
                     ['Estado', selected.estado],
-                    ['Sector', 'Urbano'],
+                    ['Sector', selected.sector || 'Sin dato'],
                   ].map(([label, value]) => (
                     <div key={label} className="min-h-24 bg-[#f6f9f8] p-4">
                       <p className="text-xs uppercase tracking-[0.1em] text-[#70807c]">
