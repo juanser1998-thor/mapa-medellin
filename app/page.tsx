@@ -180,6 +180,12 @@ export default function Home() {
     map.once('style.load', () => {
       window.clearTimeout(readyFallback);
       setReady(true);
+      map.setLight({
+        anchor: 'viewport',
+        color: '#ffffff',
+        intensity: 0.38,
+        position: [1.15, 210, 35],
+      });
       const vectorSource = Object.entries(map.getStyle().sources).find(
         ([, source]) => source.type === 'vector',
       )?.[0];
@@ -196,7 +202,7 @@ export default function Home() {
               type: 'fill-extrusion',
               minzoom: 12.2,
               paint: {
-                'fill-extrusion-color': '#6f919d',
+                'fill-extrusion-color': '#566873',
                 'fill-extrusion-height': [
                   '*',
                   [
@@ -214,6 +220,7 @@ export default function Home() {
                   0,
                 ],
                 'fill-extrusion-opacity': 1,
+                'fill-extrusion-opacity-transition': { duration: 0, delay: 0 },
                 'fill-extrusion-vertical-gradient': false,
               },
             },
