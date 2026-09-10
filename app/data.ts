@@ -10,6 +10,7 @@ export type Appraisal = {
   lng: number;
   lat: number;
   uso: string;
+  foto?: string;
 };
 
 // Campos anonimizados para exhibición pública. Se omiten cliente, folio y dirección.

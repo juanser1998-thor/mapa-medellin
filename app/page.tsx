@@ -23,6 +23,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { appraisals, type Appraisal } from './data';
+import { neonSphere } from './neon-sphere';
+import { FacadePhoto } from './facade-photo';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type AppraisalGroup = {
@@ -55,14 +57,14 @@ const cityView = {
   bearing: -24,
 };
 const valueRanges = [
-  { label: 'Menos de $250 M', max: 250_000_000, color: '#19b58f' },
-  { label: '$250 M – $400 M', max: 400_000_000, color: '#278de0' },
-  { label: '$400 M – $800 M', max: 800_000_000, color: '#f2a33a' },
-  { label: 'Más de $800 M', max: Infinity, color: '#e64870' },
+  { label: 'Menos de $250 M', max: 250_000_000, color: '#00edb0' },
+  { label: '$250 M a menos de $400 M', max: 400_000_000, color: '#16bcff' },
+  { label: '$400 M a menos de $800 M', max: 800_000_000, color: '#ffb52e' },
+  { label: '$800 M o más', max: Infinity, color: '#ff398b' },
 ];
 
 function colorForValue(value: number) {
-  return valueRanges.find((range) => value < range.max)?.color ?? '#e64870';
+  return valueRanges.find((range) => value < range.max)?.color ?? '#ff398b';
 }
 
 function offsetDuplicatePoint(
@@ -133,6 +135,7 @@ export default function Home() {
             id: record.id,
             key: group.key,
             color: colorForValue(record.valor),
+            icon: `sphere-${colorForValue(record.valor).slice(1)}`,
           },
           geometry: {
             type: 'Point',
@@ -160,7 +163,7 @@ export default function Home() {
       container: containerRef.current,
       style: 'https://tiles.openfreemap.org/styles/bright',
       ...cityView,
-      antialias: true,
+      canvasContextAttributes: { antialias: true },
       maxPitch: 78,
     });
     mapRef.current = map;
@@ -214,47 +217,33 @@ export default function Home() {
       }
 
       map.addSource('avaluos-medellin', { type: 'geojson', data: geojson });
+      for (const range of valueRanges) {
+        map.addImage(`sphere-${range.color.slice(1)}`, neonSphere(range.color), { pixelRatio: 2 });
+      }
       map.addLayer({
         id: 'avaluo-glow',
         type: 'circle',
         source: 'avaluos-medellin',
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 7, 16, 17],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 16, 16, 25],
           'circle-color': ['get', 'color'],
-          'circle-opacity': 0.28,
-          'circle-blur': 0.55,
-          'circle-pitch-alignment': 'map',
+          'circle-opacity': 0.15,
+          'circle-blur': 0.9,
+          'circle-pitch-alignment': 'viewport',
           'circle-pitch-scale': 'viewport',
         },
       });
       map.addLayer({
         id: 'avaluo-points',
-        type: 'circle',
+        type: 'symbol',
         source: 'avaluos-medellin',
-        paint: {
-          'circle-radius': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            10,
-            4.5,
-            16,
-            9,
-          ],
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 0.98,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            10,
-            1.5,
-            16,
-            3,
-          ],
-          'circle-pitch-alignment': 'map',
-          'circle-pitch-scale': 'viewport',
+        layout: {
+          'icon-image': ['get', 'icon'],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.65, 16, 1, 19, 1.2],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-pitch-alignment': 'viewport',
+          'icon-rotation-alignment': 'viewport',
         },
       });
 
@@ -302,11 +291,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!touring || !mapRef.current) return;
-    const stops = groups.filter(
+    const preferredStops = groups.filter(
       (group) =>
         group.records.length > 1 ||
         ['El Poblado', 'Caicedo', 'Robledo'].includes(group.records[0].barrio),
     );
+    const stops = preferredStops.length ? preferredStops : groups;
+    if (!stops.length) return;
     let index = 0;
     const visit = () => {
       const stop = stops[index % stops.length];
@@ -407,7 +398,7 @@ export default function Home() {
             Avalúos que cuentan la ciudad
           </h1>
           <p className="mt-1 text-sm text-[#526762] md:text-base">
-            Toca un punto para explorar su valor y características.
+            Toca una esfera para explorar el avalúo y su fachada.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <span>
@@ -505,6 +496,7 @@ export default function Home() {
               </SheetHeader>
 
               <div className="flex-1 overflow-y-auto px-6 py-6">
+                <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} id={selected.id} barrio={selected.barrio} />
                 <p className="text-sm text-[#61736f]">Valor comercial</p>
                 <p className="mt-1 text-[clamp(1.8rem,7vw,2.7rem)] font-medium tracking-[-0.055em] text-[#102723]">
                   {formatMoney(selected.valor)}
