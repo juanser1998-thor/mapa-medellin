@@ -196,19 +196,7 @@ export default function Home() {
               type: 'fill-extrusion',
               minzoom: 12.2,
               paint: {
-                'fill-extrusion-color': [
-                  'interpolate',
-                  ['linear'],
-                  ['coalesce', ['get', 'render_height'], ['get', 'height'], 18],
-                  0,
-                  '#294a59',
-                  30,
-                  '#3d7180',
-                  100,
-                  '#69a4ae',
-                  220,
-                  '#a1cfd0',
-                ],
+                'fill-extrusion-color': '#6f919d',
                 'fill-extrusion-height': [
                   '*',
                   [
@@ -225,8 +213,8 @@ export default function Home() {
                   ['get', 'min_height'],
                   0,
                 ],
-                'fill-extrusion-opacity': 0.96,
-                'fill-extrusion-vertical-gradient': true,
+                'fill-extrusion-opacity': 1,
+                'fill-extrusion-vertical-gradient': false,
               },
             },
             firstLabel,
