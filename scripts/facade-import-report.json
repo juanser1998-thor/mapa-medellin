@@ -1,0 +1,12 @@
+{
+  "sourceRecords": 3093,
+  "publishedRecords": 1374,
+  "sourcePhotoFiles": 1364,
+  "rejectedPhotoFiles": 1,
+  "uniquePhotoCodes": 1315,
+  "matchedPhotoCodes": 1315,
+  "duplicatePhotoCodeGroups": 45,
+  "unmatchedSourceRecords": 1719,
+  "unusedPhotoCodes": 0,
+  "publicFilenames": "Sanitized FID.jpg; SIB codes are not exposed"
+}

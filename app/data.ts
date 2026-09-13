@@ -16,9 +16,10 @@ export type Appraisal = {
   lat: number;
   uso: string;
   sector: string;
-  foto?: string;
+  foto: string;
 };
 
 // FID del Excel, verificado contra los atributos del SHP antes de la importación.
-// Solo campos de exhibición; se omiten cliente, folios y dirección exacta.
+// Solo avalúos con fachada asociada y campos de exhibición; se omiten cliente,
+// códigos SIB, folios y dirección exacta.
 export const appraisals: Appraisal[] = records;

@@ -5,7 +5,7 @@ import ts from 'typescript';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 
 const records = JSON.parse(fs.readFileSync('app/appraisals.json', 'utf8'));
-assert.equal(records.length, 3093);
+assert.equal(records.length, 1374);
 assert.equal(new Set(records.map(r => r.id)).size, records.length);
 for (const r of records) {
   assert.ok(Number.isFinite(r.lng) && Number.isFinite(r.lat));
@@ -13,7 +13,12 @@ for (const r of records) {
   assert.ok(Number.isFinite(r.valor) && r.valor >= 0);
   assert.ok(!('cliente' in r) && !('folio' in r) && !('nomenclatu' in r));
   assert.ok(Number.isFinite(Date.parse(r.fecha)));
+  assert.match(r.foto, /^\/fachadas\/\d+\.jpg$/);
+  assert.ok(fs.statSync(`public${r.foto}`).size >= 10_000);
 }
+const facadeFiles = fs.readdirSync('public/fachadas').filter(name => name.endsWith('.jpg'));
+assert.equal(facadeFiles.length, records.length);
+assert.equal(new Set(records.map(r => r.foto)).size, records.length);
 const source = ts.createSourceFile('page.tsx', fs.readFileSync('app/page.tsx', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const layers = [];
 function visit(node) {
@@ -36,5 +41,5 @@ const errors = validateStyleMin(style);
 assert.deepEqual(errors.map(e => e.message), [], 'MapLibre must accept every layer');
 const bands = [0, 0, 0, 0];
 records.forEach(r => bands[r.valor < 250e6 ? 0 : r.valor < 400e6 ? 1 : r.valor < 800e6 ? 2 : 3]++);
-assert.deepEqual(bands, [951, 874, 917, 351]);
-console.log(JSON.stringify({ records: records.length, valueBands: bands, validLayers: layers.map(l => l.id) }));
+assert.deepEqual(bands, [411, 411, 406, 146]);
+console.log(JSON.stringify({ records: records.length, facadePhotos: facadeFiles.length, valueBands: bands, validLayers: layers.map(l => l.id) }));
