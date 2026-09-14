@@ -577,6 +577,7 @@ export default function Home() {
                     ['Área privada', formatArea(selected.areaPrivada)],
                     ['Área construida', formatArea(selected.areaConstruida)],
                     ['Área de terreno', formatArea(selected.areaTerreno, selected.unidad.toLowerCase() === 'ha' ? 'ha' : selected.unidad.toLowerCase() === 'm2' ? 'm²' : selected.unidad || 'm²')],
+                    ['Régimen', selected.regimen === 'PH' ? 'Propiedad horizontal' : 'No propiedad horizontal'],
                     ['Fecha', formatDate(selected.fecha)],
                     ['Estrato', selected.estrato],
                     ['Estado', selected.estado],

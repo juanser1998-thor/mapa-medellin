@@ -11,6 +11,7 @@ for (const r of records) {
   assert.ok(Number.isFinite(r.lng) && Number.isFinite(r.lat));
   assert.ok(r.lng > -75.85 && r.lng < -75.4 && r.lat > 6.05 && r.lat < 6.5);
   assert.ok(Number.isFinite(r.valor) && r.valor >= 0);
+  assert.ok(r.regimen === 'PH' || r.regimen === 'NPH');
   assert.ok(!('cliente' in r) && !('folio' in r) && !('nomenclatu' in r));
   assert.ok(Number.isFinite(Date.parse(r.fecha)));
   assert.match(r.foto, /^\/fachadas\/\d+\.jpg$/);
@@ -19,6 +20,13 @@ for (const r of records) {
 const facadeFiles = fs.readdirSync('public/fachadas').filter(name => name.endsWith('.jpg'));
 assert.equal(facadeFiles.length, records.length);
 assert.equal(new Set(records.map(r => r.foto)).size, records.length);
+assert.deepEqual(
+  records.reduce((counts, record) => {
+    counts[record.regimen] = (counts[record.regimen] || 0) + 1;
+    return counts;
+  }, {}),
+  { PH: 1292, NPH: 82 },
+);
 const source = ts.createSourceFile('page.tsx', fs.readFileSync('app/page.tsx', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const layers = [];
 function visit(node) {

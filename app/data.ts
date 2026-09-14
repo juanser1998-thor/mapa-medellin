@@ -5,6 +5,7 @@ export type Appraisal = {
   barrio: string;
   fecha: string;
   tipo: string;
+  regimen: 'PH' | 'NPH';
   estado: string;
   areaPrivada: number | null;
   areaConstruida: number | null;
@@ -22,4 +23,4 @@ export type Appraisal = {
 // FID del Excel, verificado contra los atributos del SHP antes de la importación.
 // Solo avalúos con fachada asociada y campos de exhibición; se omiten cliente,
 // códigos SIB, folios y dirección exacta.
-export const appraisals: Appraisal[] = records;
+export const appraisals = records as Appraisal[];

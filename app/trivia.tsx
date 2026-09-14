@@ -8,6 +8,7 @@ import {
   Crown,
   Eye,
   RotateCcw,
+  Scale,
   Sparkles,
   Swords,
   Trophy,
@@ -35,18 +36,21 @@ type TriviaQuestion = {
   choices: Choice[];
   fact: string;
   lesson: string;
+  source?: string;
+};
+
+type NormQuestion = {
+  prompt: string;
+  choices: Choice[];
+  fact: string;
+  lesson: string;
+  source: string;
 };
 
 type AreaDatum = {
   value: number;
   label: 'Área privada' | 'Área construida' | 'Área de terreno';
 };
-
-function titleCase(value: string) {
-  return value
-    .toLocaleLowerCase('es-CO')
-    .replace(/(^|\s)\p{L}/gu, (letter) => letter.toLocaleUpperCase('es-CO'));
-}
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('es-CO', {
@@ -200,40 +204,50 @@ function plausibleMetricChoices(
   return deterministicShuffle(choices, `${record.id}:${metric}:${questionIndex}`);
 }
 
-function typeChoices(record: Appraisal) {
-  if (record.tipo === 'APARTAMENTO' || record.tipo === 'CASA') {
-    return deterministicShuffle<Choice>(
-      [
-        {
-          id: 'type-apartment',
-          label: 'Apartamento',
-          correct: record.tipo === 'APARTAMENTO',
-        },
-        {
-          id: 'type-house',
-          label: 'Casa',
-          correct: record.tipo === 'CASA',
-        },
-      ],
-      `${record.id}:type`,
-    );
-  }
-
-  const otherTypes = deterministicShuffle(
-    [...new Set(appraisals.map((item) => item.tipo))].filter(
-      (type) => type !== record.tipo,
-    ),
-    `${record.id}:other-types`,
-  ).slice(0, 3);
-
+function regimeChoices(record: Appraisal) {
   return deterministicShuffle<Choice>(
-    [record.tipo, ...otherTypes].map((type) => ({
-      id: `type-${type}`,
-      label: titleCase(type),
-      correct: type === record.tipo,
-    })),
-    `${record.id}:type-options`,
+    [
+      {
+        id: 'regime-ph',
+        label: 'Propiedad horizontal (PH)',
+        correct: record.regimen === 'PH',
+      },
+      {
+        id: 'regime-nph',
+        label: 'No propiedad horizontal (NPH)',
+        correct: record.regimen === 'NPH',
+      },
+    ],
+    `${record.id}:regime`,
   );
+}
+
+function priceRangeChoices(record: Appraisal) {
+  const value = record.valor;
+  const step =
+    value < 200_000_000
+      ? 25_000_000
+      : value < 500_000_000
+        ? 50_000_000
+        : value < 1_000_000_000
+          ? 100_000_000
+          : value < 2_000_000_000
+            ? 200_000_000
+            : 500_000_000;
+  const actualStart = Math.floor(value / step) * step;
+  const rangesBelow = Math.min(2, Math.floor(actualStart / step));
+  const firstStart = actualStart - rangesBelow * step;
+  const choices = Array.from({ length: 4 }, (_, index) => {
+    const start = firstStart + index * step;
+    const end = start + step;
+    return {
+      id: `range-${index}`,
+      label: `De ${formatMoney(start)} a menos de ${formatMoney(end)}`,
+      numericValue: start + step / 2,
+      correct: value >= start && value < end,
+    };
+  });
+  return deterministicShuffle(choices, `${record.id}:value-range`);
 }
 
 function buildQuestions(record: Appraisal): TriviaQuestion[] {
@@ -241,15 +255,13 @@ function buildQuestions(record: Appraisal): TriviaQuestion[] {
   const squareMeter = metricValue(record, 'squareMeter');
   return [
     {
-      eyebrow: 'Lee la fachada',
-      prompt:
-        record.tipo === 'APARTAMENTO' || record.tipo === 'CASA'
-          ? '¿Apartamento o casa?'
-          : '¿Qué tipo de inmueble crees que es?',
-      choices: typeChoices(record),
-      fact: `Tipo registrado: ${titleCase(record.tipo)}.`,
+      eyebrow: 'Régimen del inmueble',
+      prompt: '¿Propiedad horizontal o no propiedad horizontal?',
+      choices: regimeChoices(record),
+      fact: `Régimen registrado: ${record.regimen === 'PH' ? 'Propiedad horizontal (PH)' : 'No propiedad horizontal (NPH)'}.`,
       lesson:
-        'La tipología define qué áreas y comparables pesan más en el avalúo.',
+        'En propiedad horizontal conviven bienes privados y bienes comunes.',
+      source: 'Ley 675 de 2001, artículos 1 y 3.',
     },
     {
       eyebrow: 'Estima el espacio',
@@ -268,14 +280,85 @@ function buildQuestions(record: Appraisal): TriviaQuestion[] {
         'El valor por m² permite comparar inmuebles de tamaños distintos.',
     },
     {
-      eyebrow: 'Tu estimación final',
-      prompt: '¿Cuánto crees que vale este inmueble?',
-      choices: plausibleMetricChoices(record, 'value', 3),
+      eyebrow: 'Elige un rango',
+      prompt: '¿En qué rango está el valor comercial de este inmueble?',
+      choices: priceRangeChoices(record),
       fact: `Valor comercial registrado: ${formatMoney(record.valor)}.`,
       lesson:
-        'El valor comercial integra características físicas, ubicación y evidencia de mercado.',
+        'El rango orienta; el avalúo sustenta el valor con análisis técnico y de mercado.',
     },
   ];
+}
+
+const normQuestions: NormQuestion[] = [
+  {
+    prompt: '¿Qué describe mejor el valor comercial de un inmueble?',
+    choices: [
+      { id: 'commercial-market', label: 'El precio más favorable en un mercado libre e informado', correct: true },
+      { id: 'commercial-owner', label: 'El precio que decide únicamente el propietario', correct: false },
+      { id: 'commercial-tax', label: 'El valor usado automáticamente para impuestos', correct: false },
+      { id: 'commercial-insurance', label: 'El costo de asegurarlo contra daños', correct: false },
+    ],
+    fact: 'Es el precio más favorable cuando las partes actúan libremente y conocen las condiciones del bien.',
+    lesson: 'El valor comercial no es simplemente el precio publicado por el vendedor.',
+    source: 'Decreto 1420 de 1998, artículo 2.',
+  },
+  {
+    prompt: '¿Dónde debe acreditarse la inscripción de un avaluador?',
+    choices: [
+      { id: 'registry-raa', label: 'En el Registro Abierto de Avaluadores (RAA)', correct: true },
+      { id: 'registry-commerce', label: 'Solo en la Cámara de Comercio', correct: false },
+      { id: 'registry-cadastre', label: 'En el registro catastral municipal', correct: false },
+      { id: 'registry-property', label: 'En la Oficina de Registro de Instrumentos Públicos', correct: false },
+    ],
+    fact: 'La Ley 1673 creó el Registro Abierto de Avaluadores y regula la inscripción.',
+    lesson: 'La inscripción en el RAA acredita el ejercicio formal de la actividad valuatoria.',
+    source: 'Ley 1673 de 2013, artículos 5 y 6.',
+  },
+  {
+    prompt: '¿Cuál de estos sí es un método valuatorio reconocido?',
+    choices: [
+      { id: 'method-market', label: 'Comparación o método de mercado', correct: true },
+      { id: 'method-average', label: 'Promedio simple de anuncios sin depuración', correct: false },
+      { id: 'method-owner', label: 'Valor elegido por el propietario', correct: false },
+      { id: 'method-neighbor', label: 'Precio de un único vecino', correct: false },
+    ],
+    fact: 'La comparación de mercado analiza ofertas o transacciones comparables.',
+    lesson: 'Un buen comparable debe analizarse; no basta con copiar un anuncio.',
+    source: 'Resolución IGAC 620 de 2008.',
+  },
+  {
+    prompt: '¿Qué debe indicar un informe de avalúo además del valor final?',
+    choices: [
+      { id: 'report-method', label: 'El método y las consideraciones de la estimación', correct: true },
+      { id: 'report-photo', label: 'Únicamente una fotografía de fachada', correct: false },
+      { id: 'report-stratum', label: 'Solamente el estrato del sector', correct: false },
+      { id: 'report-owner', label: 'La expectativa económica del propietario', correct: false },
+    ],
+    fact: 'El informe debe especificar el método utilizado y las consideraciones de la estimación.',
+    lesson: 'Un avalúo es una conclusión sustentada, no una cifra aislada.',
+    source: 'Decreto 1420 de 1998, artículo 20.',
+  },
+  {
+    prompt: 'En propiedad horizontal, ¿qué área considera el avalúo?',
+    choices: [
+      { id: 'ph-private-area', label: 'El área privada y los derechos de copropiedad', correct: true },
+      { id: 'ph-whole-lot', label: 'Todo el lote del conjunto como área exclusiva', correct: false },
+      { id: 'ph-common-only', label: 'Únicamente las zonas comunes', correct: false },
+      { id: 'ph-facade-only', label: 'Solo el área visible de la fachada', correct: false },
+    ],
+    fact: 'Se consideran las áreas privadas y los derechos derivados de los coeficientes de copropiedad.',
+    lesson: 'En PH, el área privada no equivale a todas las áreas comunes del conjunto.',
+    source: 'Decreto 1420 de 1998, artículo 21.',
+  },
+];
+
+function normQuestionFor(record: Appraisal) {
+  const selected = normQuestions[hashText(record.id) % normQuestions.length];
+  return {
+    ...selected,
+    choices: deterministicShuffle(selected.choices, `${record.id}:norm`),
+  };
 }
 
 function findComparison(record: Appraisal) {
@@ -395,11 +478,13 @@ export function AppraisalTrivia({
 }) {
   const questions = useMemo(() => buildQuestions(record), [record]);
   const comparison = useMemo(() => findComparison(record), [record]);
-  const [phase, setPhase] = useState<'intro' | 'questions' | 'result' | 'bonus'>('intro');
+  const normQuestion = useMemo(() => normQuestionFor(record), [record]);
+  const [phase, setPhase] = useState<'intro' | 'questions' | 'result' | 'norm' | 'bonus'>('intro');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [score, setScore] = useState(0);
   const [valueCloseness, setValueCloseness] = useState(0);
+  const [normChoice, setNormChoice] = useState<Choice | null>(null);
   const [bonusChoice, setBonusChoice] = useState<'a' | 'b' | null>(null);
 
   const question = questions[questionIndex];
@@ -411,6 +496,7 @@ export function AppraisalTrivia({
     setSelectedChoice(null);
     setScore(0);
     setValueCloseness(0);
+    setNormChoice(null);
     setBonusChoice(null);
   };
 
@@ -448,7 +534,7 @@ export function AppraisalTrivia({
           ¿Tienes ojo de avaluador?
         </h2>
         <p className="mt-3 text-base leading-relaxed text-[#abc2bf]">
-          Observa la fachada y supera cuatro estimaciones basadas en este inmueble real.
+          Observa la fachada, supera cuatro preguntas con datos reales y prueba una norma fácil.
         </p>
         <div className="my-6">
           <FacadeFrame record={record} />
@@ -458,7 +544,7 @@ export function AppraisalTrivia({
             <strong className="block text-lg text-white">4</strong> preguntas
           </div>
           <div className="rounded-xl border border-[#759f98]/18 bg-[#0c202b] p-3">
-            <strong className="block text-lg text-white">1</strong> insignia final
+            <strong className="block text-lg text-white">+1</strong> reto normativo
           </div>
         </div>
         <Button
@@ -492,13 +578,21 @@ export function AppraisalTrivia({
           Acertaste <strong className="text-white">{score} de 4</strong> preguntas.
         </p>
         <div className="relative my-6 rounded-2xl border border-[#78ffe1]/20 bg-[#0c202b]/90 p-5">
-          <p className="text-sm text-[#94ada9]">Tu estimación de valor se acercó un</p>
+          <p className="text-sm text-[#94ada9]">El punto medio del rango elegido se acercó un</p>
           <p className="mt-1 text-5xl font-medium tracking-[-0.06em] text-[#6dffd9]">
             {valueCloseness}%
           </p>
           <p className="mt-2 text-sm text-[#c0d1ce]">al valor del avalúo.</p>
         </div>
         <div className="grid gap-3">
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 rounded-xl border-[#ffd66d]/35 bg-[#332b16] text-white hover:bg-[#45391a] hover:text-white"
+            onClick={() => setPhase('norm')}
+          >
+            <Scale className="size-5 text-[#ffd66d]" /> Reto de norma fácil
+          </Button>
           {comparison && (
             <Button
               size="lg"
@@ -524,6 +618,63 @@ export function AppraisalTrivia({
             <RotateCcw className="size-4" /> Jugar otra vez
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  if (phase === 'norm') {
+    const normAnswered = normChoice !== null;
+    return (
+      <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
+        <div className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#ffd66d]">
+          <Scale className="size-4" /> Norma fácil
+        </div>
+        <div className="mb-6 grid size-16 place-items-center rounded-2xl border border-[#ffd66d]/30 bg-[#332b16] shadow-[0_0_34px_rgba(255,214,109,.12)]">
+          <Scale className="size-8 text-[#ffd66d]" />
+        </div>
+        <h2 className="text-3xl font-medium leading-tight tracking-[-0.045em] text-white">
+          {normQuestion.prompt}
+        </h2>
+        <p className="mt-2 text-sm text-[#9db4b0]">Una pregunta sencilla sobre la actividad valuatoria en Colombia.</p>
+        <div className="mt-6 grid gap-2.5">
+          {normQuestion.choices.map((choice) => (
+            <QuizChoice
+              key={choice.id}
+              choice={choice}
+              selected={normChoice?.id === choice.id}
+              answered={normAnswered}
+              onChoose={() => setNormChoice(choice)}
+            />
+          ))}
+        </div>
+        {normAnswered && (
+          <div
+            className={`mt-5 rounded-2xl border p-4 ${
+              normChoice.correct
+                ? 'border-[#60f0c2]/25 bg-[#0d332d]'
+                : 'border-[#ff6d94]/22 bg-[#321b29]'
+            }`}
+            aria-live="polite"
+          >
+            <p className="font-semibold text-white">
+              {normChoice.correct
+                ? '¡Correcto!'
+                : `Respuesta correcta: ${normQuestion.choices.find((choice) => choice.correct)?.label}`}
+            </p>
+            <p className="mt-2 text-sm text-[#d0dfdc]">Dato normativo: {normQuestion.fact}</p>
+            <p className="mt-2 text-sm text-[#72e8d0]">{normQuestion.lesson}</p>
+            <p className="mt-3 text-xs text-[#a99f7e]">Referencia: {normQuestion.source}</p>
+          </div>
+        )}
+        {normAnswered && (
+          <Button
+            size="lg"
+            className="mt-5 h-14 rounded-xl bg-[#13a98e] text-base font-semibold text-white hover:bg-[#18bfa0]"
+            onClick={onReveal}
+          >
+            Revelar ficha completa <Sparkles className="size-5" />
+          </Button>
+        )}
       </div>
     );
   }
@@ -644,6 +795,9 @@ export function AppraisalTrivia({
           </p>
           <p className="mt-2 text-sm text-[#d0dfdc]">Dato real: {question.fact}</p>
           <p className="mt-2 text-sm text-[#72e8d0]">{question.lesson}</p>
+          {question.source && (
+            <p className="mt-3 text-xs text-[#a99f7e]">Referencia: {question.source}</p>
+          )}
         </div>
       )}
       {answered && (
