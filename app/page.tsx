@@ -25,6 +25,7 @@ import {
 import { appraisals, type Appraisal } from './data';
 import { neonSphere } from './neon-sphere';
 import { FacadePhoto } from './facade-photo';
+import { AppraisalTrivia } from './trivia';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type AppraisalGroup = {
@@ -111,6 +112,7 @@ export default function Home() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [recordIndex, setRecordIndex] = useState(0);
   const [touring, setTouring] = useState(false);
+  const [viewMode, setViewMode] = useState<'quiz' | 'details'>('quiz');
 
   const groups = useMemo<AppraisalGroup[]>(() => {
     const grouped = new Map<string, AppraisalGroup>();
@@ -295,6 +297,7 @@ export default function Home() {
             group.records.findIndex((item) => item.id === id),
           ),
         );
+        setViewMode('quiz');
         setSelectedKey(key);
         setTouring(false);
         map.flyTo({
@@ -396,6 +399,7 @@ export default function Home() {
             if (!group)
               throw new Error('El avalúo no tiene una ubicación disponible.');
             setTouring(false);
+            setViewMode('quiz');
             setSelectedKey(key);
             setRecordIndex(group.records.findIndex((item) => item.id === id));
             mapRef.current?.flyTo({
@@ -422,6 +426,7 @@ export default function Home() {
   const resetView = () => {
     setTouring(false);
     setSelectedKey(null);
+    setViewMode('quiz');
     mapRef.current?.flyTo({ ...cityView, duration: 1200 });
   };
 
@@ -446,7 +451,7 @@ export default function Home() {
             Avalúos que cuentan la ciudad
           </h1>
           <p className="mt-1 text-sm text-[#abc2bf] md:text-base">
-            Toca un grupo para acercarte o una esfera para abrir su avalúo.
+            Toca una esfera y demuestra cuánto sabes de avalúos.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <span>
@@ -514,22 +519,40 @@ export default function Home() {
       <Sheet
         open={Boolean(selected && selectedGroup)}
         onOpenChange={(open) => {
-          if (!open) setSelectedKey(null);
+          if (!open) {
+            setSelectedKey(null);
+            setViewMode('quiz');
+          }
         }}
       >
         <SheetContent
-          className="w-[min(92vw,430px)] border-l-[#73ffe1]/15 bg-[#081722]/98 p-0 text-[#edf8f6] backdrop-blur-xl sm:max-w-[430px]"
+          className="w-[min(94vw,520px)] border-l-[#73ffe1]/15 bg-[#081722]/98 p-0 text-[#edf8f6] backdrop-blur-xl sm:max-w-[520px]"
           aria-describedby="appraisal-description"
         >
           {selected && selectedGroup && (
-            <>
+            viewMode === 'quiz' ? (
+              <>
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Trivia de avalúos en {selected.barrio}</SheetTitle>
+                  <SheetDescription id="appraisal-description">
+                    Ronda interactiva antes de revelar la ficha del inmueble.
+                  </SheetDescription>
+                </SheetHeader>
+                <AppraisalTrivia
+                  key={selected.id}
+                  record={selected}
+                  onReveal={() => setViewMode('details')}
+                />
+              </>
+            ) : (
+              <>
               <SheetHeader className="border-b border-[#8db5ae]/15 px-6 pb-5 pt-7">
                 <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#57e6c8]">
                   <span
                     className="size-2 rounded-full"
                     style={{ background: colorForValue(selected.valor) }}
                   />
-                  Avalúo #{selected.id}
+                  Ficha revelada
                 </div>
                 <SheetTitle className="pr-8 text-3xl font-medium tracking-[-0.04em]">
                   {selected.barrio}
@@ -544,7 +567,7 @@ export default function Home() {
               </SheetHeader>
 
               <div className="flex-1 overflow-y-auto px-6 py-6">
-                <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} id={selected.id} barrio={selected.barrio} />
+                <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} barrio={selected.barrio} />
                 <p className="text-sm text-[#9fb8b4]">Valor comercial</p>
                 <p className="mt-1 text-[clamp(1.8rem,7vw,2.7rem)] font-medium tracking-[-0.055em] text-[#f4fffd]">
                   {formatMoney(selected.valor)}
@@ -580,10 +603,13 @@ export default function Home() {
                     size="lg"
                     className="h-11"
                     onClick={() =>
-                      setRecordIndex(
-                        (recordIndex - 1 + selectedGroup.records.length) %
-                          selectedGroup.records.length,
-                      )
+                      {
+                        setRecordIndex(
+                          (recordIndex - 1 + selectedGroup.records.length) %
+                            selectedGroup.records.length,
+                        );
+                        setViewMode('quiz');
+                      }
                     }
                   >
                     <ChevronLeft /> Anterior
@@ -596,16 +622,20 @@ export default function Home() {
                     size="lg"
                     className="h-11"
                     onClick={() =>
-                      setRecordIndex(
-                        (recordIndex + 1) % selectedGroup.records.length,
-                      )
+                      {
+                        setRecordIndex(
+                          (recordIndex + 1) % selectedGroup.records.length,
+                        );
+                        setViewMode('quiz');
+                      }
                     }
                   >
                     Siguiente <ChevronRight />
                   </Button>
                 </div>
               )}
-            </>
+              </>
+            )
           )}
         </SheetContent>
       </Sheet>
