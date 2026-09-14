@@ -10,7 +10,6 @@ import {
   RotateCcw,
   Scale,
   Sparkles,
-  Swords,
   Trophy,
   X,
 } from 'lucide-react';
@@ -37,6 +36,9 @@ type TriviaQuestion = {
   fact: string;
   lesson: string;
   source?: string;
+  visual?: 'property' | 'comparison' | 'norm';
+  comparison?: Appraisal;
+  measuresValueRange?: boolean;
 };
 
 type NormQuestion = {
@@ -51,6 +53,12 @@ type AreaDatum = {
   value: number;
   label: 'Área privada' | 'Área construida' | 'Área de terreno';
 };
+
+function titleCase(value: string) {
+  return value
+    .toLocaleLowerCase('es-CO')
+    .replace(/(^|\s)\p{L}/gu, (letter) => letter.toLocaleUpperCase('es-CO'));
+}
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('es-CO', {
@@ -117,93 +125,6 @@ function metricLabel(metric: Metric, value: number) {
   return formatSquareMeter(value);
 }
 
-function roundedEstimate(actual: number, metric: Metric, factor: number) {
-  const step =
-    metric === 'area'
-      ? actual < 25
-        ? 0.5
-        : actual < 150
-          ? 1
-          : 5
-      : metric === 'value'
-        ? 5_000_000
-        : 50_000;
-  return Math.max(step, Math.round((actual * factor) / step) * step);
-}
-
-function plausibleMetricChoices(
-  record: Appraisal,
-  metric: Metric,
-  questionIndex: number,
-) {
-  const actual = metricValue(record, metric);
-  const actualLabel = metricLabel(metric, actual);
-  const sameType = appraisals.filter(
-    (candidate) => candidate.id !== record.id && candidate.tipo === record.tipo,
-  );
-  const allOthers = appraisals.filter((candidate) => candidate.id !== record.id);
-  const candidates = deterministicShuffle(
-    [...sameType, ...allOthers],
-    `${record.id}:${metric}:candidates`,
-  );
-  const selected: number[] = [];
-  const labels = new Set([actualLabel]);
-
-  const collect = (minimumRatio: number, maximumRatio: number, minimumGap: number) => {
-    for (const candidate of candidates) {
-      if (selected.length === 3) break;
-      const value = metricValue(candidate, metric);
-      if (!(value > 0) || !(actual > 0)) continue;
-      const ratio = value / actual;
-      if (
-        ratio < minimumRatio ||
-        ratio > maximumRatio ||
-        Math.abs(1 - ratio) < minimumGap
-      ) {
-        continue;
-      }
-      const label = metricLabel(metric, value);
-      if (labels.has(label)) continue;
-      labels.add(label);
-      selected.push(value);
-    }
-  };
-
-  collect(0.58, 1.72, 0.09);
-  if (selected.length < 3) collect(0.38, 2.35, 0.055);
-  if (selected.length < 3) {
-    const fallbackFactors = deterministicShuffle(
-      [0.72, 0.84, 1.16, 1.32, 1.48],
-      `${record.id}:${metric}:estimates`,
-    );
-    for (const factor of fallbackFactors) {
-      if (selected.length === 3) break;
-      const value = roundedEstimate(actual, metric, factor);
-      const label = metricLabel(metric, value);
-      if (labels.has(label)) continue;
-      labels.add(label);
-      selected.push(value);
-    }
-  }
-
-  const choices: Choice[] = [
-    {
-      id: `correct-${metric}`,
-      label: actualLabel,
-      numericValue: actual,
-      correct: true,
-    },
-    ...selected.slice(0, 3).map((value, index) => ({
-      id: `option-${metric}-${index}`,
-      label: metricLabel(metric, value),
-      numericValue: value,
-      correct: false,
-    })),
-  ];
-
-  return deterministicShuffle(choices, `${record.id}:${metric}:${questionIndex}`);
-}
-
 function regimeChoices(record: Appraisal) {
   return deterministicShuffle<Choice>(
     [
@@ -222,18 +143,30 @@ function regimeChoices(record: Appraisal) {
   );
 }
 
-function priceRangeChoices(record: Appraisal) {
-  const value = record.valor;
-  const step =
-    value < 200_000_000
-      ? 25_000_000
-      : value < 500_000_000
-        ? 50_000_000
-        : value < 1_000_000_000
-          ? 100_000_000
-          : value < 2_000_000_000
-            ? 200_000_000
-            : 500_000_000;
+function rangeStep(metric: Metric, value: number) {
+  if (metric === 'area') {
+    if (value < 50) return 10;
+    if (value < 120) return 20;
+    if (value < 300) return 50;
+    if (value < 800) return 100;
+    return 250;
+  }
+  if (metric === 'squareMeter') {
+    if (value < 2_000_000) return 250_000;
+    if (value < 5_000_000) return 500_000;
+    if (value < 10_000_000) return 1_000_000;
+    return 2_000_000;
+  }
+  if (value < 200_000_000) return 25_000_000;
+  if (value < 500_000_000) return 50_000_000;
+  if (value < 1_000_000_000) return 100_000_000;
+  if (value < 2_000_000_000) return 200_000_000;
+  return 500_000_000;
+}
+
+function metricRangeChoices(record: Appraisal, metric: Metric) {
+  const value = metricValue(record, metric);
+  const step = rangeStep(metric, value);
   const actualStart = Math.floor(value / step) * step;
   const rangesBelow = Math.min(2, Math.floor(actualStart / step));
   const firstStart = actualStart - rangesBelow * step;
@@ -241,53 +174,13 @@ function priceRangeChoices(record: Appraisal) {
     const start = firstStart + index * step;
     const end = start + step;
     return {
-      id: `range-${index}`,
-      label: `De ${formatMoney(start)} a menos de ${formatMoney(end)}`,
+      id: `range-${metric}-${index}`,
+      label: `De ${metricLabel(metric, start)} a menos de ${metricLabel(metric, end)}`,
       numericValue: start + step / 2,
       correct: value >= start && value < end,
     };
   });
-  return deterministicShuffle(choices, `${record.id}:value-range`);
-}
-
-function buildQuestions(record: Appraisal): TriviaQuestion[] {
-  const area = primaryArea(record);
-  const squareMeter = metricValue(record, 'squareMeter');
-  return [
-    {
-      eyebrow: 'Régimen del inmueble',
-      prompt: '¿Propiedad horizontal o no propiedad horizontal?',
-      choices: regimeChoices(record),
-      fact: `Régimen registrado: ${record.regimen === 'PH' ? 'Propiedad horizontal (PH)' : 'No propiedad horizontal (NPH)'}.`,
-      lesson:
-        'En propiedad horizontal conviven bienes privados y bienes comunes.',
-      source: 'Ley 675 de 2001, artículos 1 y 3.',
-    },
-    {
-      eyebrow: 'Estima el espacio',
-      prompt: `¿Cuánto crees que mide su ${area.label.toLocaleLowerCase('es-CO')}?`,
-      choices: plausibleMetricChoices(record, 'area', 1),
-      fact: `${area.label} registrada: ${formatArea(area.value)}.`,
-      lesson:
-        'El área influye, pero ubicación, uso y mercado también modifican el valor.',
-    },
-    {
-      eyebrow: 'Piensa como avaluador',
-      prompt: '¿Cuánto crees que vale el m²?',
-      choices: plausibleMetricChoices(record, 'squareMeter', 2),
-      fact: `${formatMoney(record.valor)} ÷ ${formatArea(area.value)} = ${formatSquareMeter(squareMeter)}.`,
-      lesson:
-        'El valor por m² permite comparar inmuebles de tamaños distintos.',
-    },
-    {
-      eyebrow: 'Elige un rango',
-      prompt: '¿En qué rango está el valor comercial de este inmueble?',
-      choices: priceRangeChoices(record),
-      fact: `Valor comercial registrado: ${formatMoney(record.valor)}.`,
-      lesson:
-        'El rango orienta; el avalúo sustenta el valor con análisis técnico y de mercado.',
-    },
-  ];
+  return deterministicShuffle(choices, `${record.id}:${metric}-range`);
 }
 
 const normQuestions: NormQuestion[] = [
@@ -361,6 +254,114 @@ function normQuestionFor(record: Appraisal) {
   };
 }
 
+function stratumChoices(record: Appraisal) {
+  const stratum = Number(record.estrato);
+  const selected = Number.isFinite(stratum)
+    ? stratum <= 2
+      ? 'stratum-12'
+      : stratum <= 4
+        ? 'stratum-34'
+        : 'stratum-56'
+    : 'stratum-na';
+  return deterministicShuffle<Choice>(
+    [
+      { id: 'stratum-12', label: 'Estratos 1–2', correct: selected === 'stratum-12' },
+      { id: 'stratum-34', label: 'Estratos 3–4', correct: selected === 'stratum-34' },
+      { id: 'stratum-56', label: 'Estratos 5–6', correct: selected === 'stratum-56' },
+      { id: 'stratum-na', label: 'No aplica', correct: selected === 'stratum-na' },
+    ],
+    `${record.id}:stratum`,
+  );
+}
+
+function useChoices(record: Appraisal) {
+  const catalog = [
+    'RESIDENCIAL',
+    'COMERCIO Y SERVICIOS',
+    'MIXTO',
+    'INDUSTRIAL',
+    'HOTEL',
+    'SIN INFORMACION',
+    'NO APLICA',
+  ];
+  const alternatives = deterministicShuffle(
+    catalog.filter((value) => value !== record.uso),
+    `${record.id}:use-options`,
+  ).slice(0, 3);
+  return deterministicShuffle<Choice>(
+    [record.uso, ...alternatives].map((value) => ({
+      id: `use-${value}`,
+      label: titleCase(value === 'SIN INFORMACION' ? 'Sin información' : value),
+      correct: value === record.uso,
+    })),
+    `${record.id}:use`,
+  );
+}
+
+function typeChoices(record: Appraisal) {
+  const catalog = [
+    'APARTAMENTO',
+    'CASA',
+    'OFICINA',
+    'LOCAL',
+    'APARTA SUITE',
+    'CONSULTORIO',
+    'EDIFICIO',
+    'LOTE',
+  ];
+  const alternatives = deterministicShuffle(
+    catalog.filter((value) => value !== record.tipo),
+    `${record.id}:type-options`,
+  ).slice(0, 3);
+  return deterministicShuffle<Choice>(
+    [record.tipo, ...alternatives].map((value) => ({
+      id: `type-${value}`,
+      label: titleCase(value),
+      correct: value === record.tipo,
+    })),
+    `${record.id}:type`,
+  );
+}
+
+function attributeQuestionFor(record: Appraisal): TriviaQuestion {
+  const variant = hashText(`${record.id}:attribute`) % 4;
+  if (variant === 0) {
+    return {
+      eyebrow: 'Régimen del inmueble',
+      prompt: '¿Propiedad horizontal o no propiedad horizontal?',
+      choices: regimeChoices(record),
+      fact: `Régimen registrado: ${record.regimen === 'PH' ? 'Propiedad horizontal (PH)' : 'No propiedad horizontal (NPH)'}.`,
+      lesson: 'En propiedad horizontal conviven bienes privados y bienes comunes.',
+      source: 'Ley 675 de 2001, artículos 1 y 3.',
+    };
+  }
+  if (variant === 1) {
+    return {
+      eyebrow: 'Lee el contexto',
+      prompt: '¿En qué rango de estrato está registrado este inmueble?',
+      choices: stratumChoices(record),
+      fact: `Estrato registrado: ${record.estrato}.`,
+      lesson: 'El estrato aporta contexto, pero no determina por sí solo el valor comercial.',
+    };
+  }
+  if (variant === 2) {
+    return {
+      eyebrow: 'Uso registrado',
+      prompt: '¿Cuál es el uso principal registrado para este inmueble?',
+      choices: useChoices(record),
+      fact: `Uso registrado: ${titleCase(record.uso)}.`,
+      lesson: 'El uso permitido y efectivo influye en los comparables adecuados.',
+    };
+  }
+  return {
+    eyebrow: 'Reconoce el inmueble',
+    prompt: 'Según la fachada, ¿qué tipo de inmueble está registrado?',
+    choices: typeChoices(record),
+    fact: `Tipo de inmueble registrado: ${titleCase(record.tipo)}.`,
+    lesson: 'Clasificar bien el inmueble ayuda a escoger comparables pertinentes.',
+  };
+}
+
 function findComparison(record: Appraisal) {
   const ownArea = primaryArea(record).value;
   const candidates = appraisals.filter((candidate) => {
@@ -376,6 +377,7 @@ function findComparison(record: Appraisal) {
       ownArea > 0 &&
       candidateArea / ownArea >= 0.68 &&
       candidateArea / ownArea <= 1.42 &&
+      Math.abs(1 - candidateArea / ownArea) > 0.08 &&
       Math.abs(1 - valueRatio) > 0.08 &&
       Math.abs(1 - squareMeterRatio) > 0.08
     );
@@ -392,10 +394,101 @@ function findComparison(record: Appraisal) {
   )[0];
 }
 
-function scoreLabel(score: number) {
-  if (score === 4) return 'Ojo de perito 👑';
-  if (score === 3) return 'Casi un experto';
-  if (score === 2) return 'Buen ojo inmobiliario';
+function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
+  const comparison = findComparison(record);
+  if (!comparison) return null;
+  const metric = (['value', 'squareMeter', 'area'] as Metric[])[
+    hashText(`${record.id}:comparison-metric`) % 3
+  ];
+  const firstValue = metricValue(record, metric);
+  const secondValue = metricValue(comparison, metric);
+  const firstWins = firstValue > secondValue;
+  const questionByMetric: Record<Metric, string> = {
+    value: '¿Cuál tiene mayor valor comercial?',
+    squareMeter: '¿Cuál tiene el m² más costoso?',
+    area: '¿Cuál tiene mayor área registrada?',
+  };
+  const lessonByMetric: Record<Metric, string> = {
+    value: 'Una fachada similar no implica el mismo valor comercial.',
+    squareMeter: 'El valor por m² revela contrastes que el tamaño no muestra.',
+    area: 'El inmueble más grande no siempre es el de mayor valor.',
+  };
+  return {
+    eyebrow: 'Duelo de fachadas',
+    prompt: questionByMetric[metric],
+    visual: 'comparison',
+    comparison,
+    choices: [
+      { id: 'comparison-a', label: 'Inmueble A', correct: firstWins },
+      { id: 'comparison-b', label: 'Inmueble B', correct: !firstWins },
+    ],
+    fact: `A: ${metricLabel(metric, firstValue)} · B: ${metricLabel(metric, secondValue)}.`,
+    lesson: lessonByMetric[metric],
+  };
+}
+
+function buildQuestions(record: Appraisal): TriviaQuestion[] {
+  const area = primaryArea(record);
+  const squareMeter = metricValue(record, 'squareMeter');
+  const norm = normQuestionFor(record);
+  const comparison = comparisonQuestionFor(record);
+  const questions: TriviaQuestion[] = [
+    attributeQuestionFor(record),
+    {
+      eyebrow: 'Estima el espacio',
+      prompt: `¿En qué rango está su ${area.label.toLocaleLowerCase('es-CO')}?`,
+      choices: metricRangeChoices(record, 'area'),
+      fact: `${area.label} registrada: ${formatArea(area.value)}.`,
+      lesson: 'El área influye, pero ubicación, uso y mercado también modifican el valor.',
+    },
+    {
+      eyebrow: 'Piensa como avaluador',
+      prompt: '¿En qué rango está el valor por m²?',
+      choices: metricRangeChoices(record, 'squareMeter'),
+      fact: `${formatMoney(record.valor)} ÷ ${formatArea(area.value)} = ${formatSquareMeter(squareMeter)}.`,
+      lesson: 'El valor por m² permite comparar inmuebles de tamaños distintos.',
+    },
+    {
+      eyebrow: 'Elige un rango',
+      prompt: '¿En qué rango está el valor comercial de este inmueble?',
+      choices: metricRangeChoices(record, 'value'),
+      fact: `Valor comercial registrado: ${formatMoney(record.valor)}.`,
+      lesson: 'El rango orienta; el avalúo sustenta el valor con análisis técnico y de mercado.',
+      measuresValueRange: true,
+    },
+    {
+      eyebrow: 'Norma fácil',
+      prompt: norm.prompt,
+      choices: norm.choices,
+      fact: norm.fact,
+      lesson: norm.lesson,
+      source: norm.source,
+      visual: 'norm',
+    },
+  ];
+  if (comparison) questions.push(comparison);
+  else {
+    questions.push({
+      eyebrow: 'Sector registrado',
+      prompt: '¿El inmueble está en sector urbano o rural?',
+      choices: deterministicShuffle<Choice>(
+        [
+          { id: 'sector-urban', label: 'Urbano', correct: record.sector === 'URBANO' },
+          { id: 'sector-rural', label: 'Rural', correct: record.sector === 'RURAL' },
+        ],
+        `${record.id}:sector`,
+      ),
+      fact: `Sector registrado: ${titleCase(record.sector)}.`,
+      lesson: 'El contexto territorial orienta la selección de comparables.',
+    });
+  }
+  return deterministicShuffle(questions, `${record.id}:round-order`);
+}
+
+function scoreLabel(score: number, total: number) {
+  if (score === total) return 'Ojo de perito 👑';
+  if (score >= total - 1) return 'Casi un experto';
+  if (score >= Math.ceil(total / 2)) return 'Buen ojo inmobiliario';
   return 'Mejor llamemos a un avaluador 😅';
 }
 
@@ -477,15 +570,11 @@ export function AppraisalTrivia({
   onReveal: () => void;
 }) {
   const questions = useMemo(() => buildQuestions(record), [record]);
-  const comparison = useMemo(() => findComparison(record), [record]);
-  const normQuestion = useMemo(() => normQuestionFor(record), [record]);
-  const [phase, setPhase] = useState<'intro' | 'questions' | 'result' | 'norm' | 'bonus'>('intro');
+  const [phase, setPhase] = useState<'intro' | 'questions' | 'result'>('intro');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [score, setScore] = useState(0);
   const [valueCloseness, setValueCloseness] = useState(0);
-  const [normChoice, setNormChoice] = useState<Choice | null>(null);
-  const [bonusChoice, setBonusChoice] = useState<'a' | 'b' | null>(null);
 
   const question = questions[questionIndex];
   const answered = selectedChoice !== null;
@@ -496,15 +585,13 @@ export function AppraisalTrivia({
     setSelectedChoice(null);
     setScore(0);
     setValueCloseness(0);
-    setNormChoice(null);
-    setBonusChoice(null);
   };
 
   const choose = (choice: Choice) => {
     if (answered) return;
     setSelectedChoice(choice);
     if (choice.correct) setScore((current) => current + 1);
-    if (questionIndex === questions.length - 1 && choice.numericValue) {
+    if (question.measuresValueRange && choice.numericValue) {
       const difference = Math.abs(choice.numericValue - record.valor) / record.valor;
       setValueCloseness(Math.max(0, Math.round((1 - difference) * 100)));
     }
@@ -519,11 +606,6 @@ export function AppraisalTrivia({
     setSelectedChoice(null);
   };
 
-  const comparisonMetric: Metric = hashText(record.id) % 2 === 0 ? 'value' : 'squareMeter';
-  const comparisonA = metricValue(record, comparisonMetric);
-  const comparisonB = comparison ? metricValue(comparison, comparisonMetric) : 0;
-  const comparisonCorrect: 'a' | 'b' = comparisonA >= comparisonB ? 'a' : 'b';
-
   if (phase === 'intro') {
     return (
       <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
@@ -534,17 +616,17 @@ export function AppraisalTrivia({
           ¿Tienes ojo de avaluador?
         </h2>
         <p className="mt-3 text-base leading-relaxed text-[#abc2bf]">
-          Observa la fachada, supera cuatro preguntas con datos reales y prueba una norma fácil.
+          Observa las fachadas y supera una ronda diferente para cada inmueble, siempre con datos reales.
         </p>
         <div className="my-6">
           <FacadeFrame record={record} />
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm text-[#b6cbc7]">
           <div className="rounded-xl border border-[#759f98]/18 bg-[#0c202b] p-3">
-            <strong className="block text-lg text-white">4</strong> preguntas
+            <strong className="block text-lg text-white">{questions.length}</strong> preguntas variadas
           </div>
           <div className="rounded-xl border border-[#759f98]/18 bg-[#0c202b] p-3">
-            <strong className="block text-lg text-white">+1</strong> reto normativo
+            <strong className="block text-lg text-white">3</strong> retos por rangos
           </div>
         </div>
         <Button
@@ -566,16 +648,16 @@ export function AppraisalTrivia({
       <div className="relative flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8 text-center">
         <div className="pointer-events-none absolute inset-x-8 top-8 h-52 rounded-full bg-[#24e8bd]/10 blur-3xl" />
         <div className="relative mx-auto grid size-20 place-items-center rounded-full border border-[#7dffe2]/35 bg-[#0d3b36] shadow-[0_0_44px_rgba(42,239,195,.25)]">
-          {score === 4 ? <Crown className="size-9 text-[#ffd65a]" /> : <Trophy className="size-9 text-[#67f2d4]" />}
+          {score === questions.length ? <Crown className="size-9 text-[#ffd65a]" /> : <Trophy className="size-9 text-[#67f2d4]" />}
         </div>
         <p className="relative mt-5 text-xs font-semibold uppercase tracking-[0.17em] text-[#63e9ce]">
           Resultado final
         </p>
         <h2 className="relative mt-2 text-3xl font-medium tracking-[-0.045em] text-white">
-          {scoreLabel(score)}
+          {scoreLabel(score, questions.length)}
         </h2>
         <p className="relative mt-3 text-lg text-[#c7d9d6]">
-          Acertaste <strong className="text-white">{score} de 4</strong> preguntas.
+          Acertaste <strong className="text-white">{score} de {questions.length}</strong> preguntas.
         </p>
         <div className="relative my-6 rounded-2xl border border-[#78ffe1]/20 bg-[#0c202b]/90 p-5">
           <p className="text-sm text-[#94ada9]">El punto medio del rango elegido se acercó un</p>
@@ -585,24 +667,6 @@ export function AppraisalTrivia({
           <p className="mt-2 text-sm text-[#c0d1ce]">al valor del avalúo.</p>
         </div>
         <div className="grid gap-3">
-          <Button
-            size="lg"
-            variant="outline"
-            className="h-14 rounded-xl border-[#ffd66d]/35 bg-[#332b16] text-white hover:bg-[#45391a] hover:text-white"
-            onClick={() => setPhase('norm')}
-          >
-            <Scale className="size-5 text-[#ffd66d]" /> Reto de norma fácil
-          </Button>
-          {comparison && (
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-14 rounded-xl border-[#67e9d0]/30 bg-[#102a34] text-white hover:bg-[#173944] hover:text-white"
-              onClick={() => setPhase('bonus')}
-            >
-              <Swords className="size-5" /> Duelo de fachadas
-            </Button>
-          )}
           <Button
             size="lg"
             className="h-14 rounded-xl bg-[#13a98e] text-base font-semibold text-white hover:bg-[#18bfa0]"
@@ -622,135 +686,6 @@ export function AppraisalTrivia({
     );
   }
 
-  if (phase === 'norm') {
-    const normAnswered = normChoice !== null;
-    return (
-      <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
-        <div className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#ffd66d]">
-          <Scale className="size-4" /> Norma fácil
-        </div>
-        <div className="mb-6 grid size-16 place-items-center rounded-2xl border border-[#ffd66d]/30 bg-[#332b16] shadow-[0_0_34px_rgba(255,214,109,.12)]">
-          <Scale className="size-8 text-[#ffd66d]" />
-        </div>
-        <h2 className="text-3xl font-medium leading-tight tracking-[-0.045em] text-white">
-          {normQuestion.prompt}
-        </h2>
-        <p className="mt-2 text-sm text-[#9db4b0]">Una pregunta sencilla sobre la actividad valuatoria en Colombia.</p>
-        <div className="mt-6 grid gap-2.5">
-          {normQuestion.choices.map((choice) => (
-            <QuizChoice
-              key={choice.id}
-              choice={choice}
-              selected={normChoice?.id === choice.id}
-              answered={normAnswered}
-              onChoose={() => setNormChoice(choice)}
-            />
-          ))}
-        </div>
-        {normAnswered && (
-          <div
-            className={`mt-5 rounded-2xl border p-4 ${
-              normChoice.correct
-                ? 'border-[#60f0c2]/25 bg-[#0d332d]'
-                : 'border-[#ff6d94]/22 bg-[#321b29]'
-            }`}
-            aria-live="polite"
-          >
-            <p className="font-semibold text-white">
-              {normChoice.correct
-                ? '¡Correcto!'
-                : `Respuesta correcta: ${normQuestion.choices.find((choice) => choice.correct)?.label}`}
-            </p>
-            <p className="mt-2 text-sm text-[#d0dfdc]">Dato normativo: {normQuestion.fact}</p>
-            <p className="mt-2 text-sm text-[#72e8d0]">{normQuestion.lesson}</p>
-            <p className="mt-3 text-xs text-[#a99f7e]">Referencia: {normQuestion.source}</p>
-          </div>
-        )}
-        {normAnswered && (
-          <Button
-            size="lg"
-            className="mt-5 h-14 rounded-xl bg-[#13a98e] text-base font-semibold text-white hover:bg-[#18bfa0]"
-            onClick={onReveal}
-          >
-            Revelar ficha completa <Sparkles className="size-5" />
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  if (phase === 'bonus' && comparison) {
-    const bonusAnswered = bonusChoice !== null;
-    const formatComparison = (value: number) =>
-      comparisonMetric === 'value' ? formatMoney(value) : formatSquareMeter(value);
-    return (
-      <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
-        <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#61efd1]">
-          <Swords className="size-4" /> Duelo de fachadas
-        </div>
-        <h2 className="text-3xl font-medium leading-tight tracking-[-0.045em] text-white">
-          {comparisonMetric === 'value'
-            ? '¿Cuál tiene mayor valor comercial?'
-            : '¿Cuál tiene el m² más costoso?'}
-        </h2>
-        <div className="my-5 grid grid-cols-2 gap-3">
-          <FacadeFrame record={record} label="Inmueble A" />
-          <FacadeFrame record={comparison} label="Inmueble B" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {(['a', 'b'] as const).map((choice) => {
-            const correct = choice === comparisonCorrect;
-            const selected = choice === bonusChoice;
-            return (
-              <button
-                key={choice}
-                type="button"
-                disabled={bonusAnswered}
-                onClick={() => setBonusChoice(choice)}
-                className={`min-h-14 rounded-xl border px-4 py-3 text-base font-semibold transition ${
-                  bonusAnswered
-                    ? correct
-                      ? 'border-[#58f0bd] bg-[#103f35] text-white'
-                      : selected
-                        ? 'border-[#ff668f] bg-[#421c2c] text-white'
-                        : 'border-white/10 bg-[#0c202b]/60 text-[#6f8783]'
-                    : 'border-[#8ba6a1]/22 bg-[#0c202b] text-white hover:border-[#60e7cf]/65 hover:bg-[#12313b]'
-                }`}
-              >
-                Inmueble {choice.toUpperCase()}
-              </button>
-            );
-          })}
-        </div>
-        {bonusAnswered && (
-          <div className="mt-5 rounded-2xl border border-[#73ffe1]/22 bg-[#0c292e] p-4">
-            <p className="font-semibold text-white">
-              {bonusChoice === comparisonCorrect ? '¡Buen ojo!' : `La respuesta era el inmueble ${comparisonCorrect.toUpperCase()}.`}
-            </p>
-            <div className="mt-3 grid gap-1 text-sm text-[#bfd1ce]">
-              <p>A: {formatComparison(comparisonA)}</p>
-              <p>B: {formatComparison(comparisonB)}</p>
-            </div>
-            <p className="mt-3 text-sm text-[#74e9d0]">
-              {comparisonMetric === 'value'
-                ? 'Una fachada similar no implica el mismo valor comercial.'
-                : 'El valor por m² revela contrastes que el tamaño no muestra.'}
-            </p>
-          </div>
-        )}
-        {bonusAnswered && (
-          <Button
-            size="lg"
-            className="mt-5 h-14 rounded-xl bg-[#13a98e] text-base font-semibold text-white hover:bg-[#18bfa0]"
-            onClick={onReveal}
-          >
-            Revelar ficha completa <Sparkles className="size-5" />
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-7">
       <Progress value={((questionIndex + 1) / questions.length) * 100} className="mb-5 text-[#b7cbc8]">
@@ -759,9 +694,25 @@ export function AppraisalTrivia({
           {questionIndex + 1} de {questions.length}
         </span>
       </Progress>
-      <div className="mb-5 overflow-hidden rounded-2xl">
-        <FacadeFrame record={record} />
-      </div>
+      {question.visual === 'comparison' && question.comparison ? (
+        <div className="mb-5 grid grid-cols-2 gap-3">
+          <FacadeFrame record={record} label="Inmueble A" />
+          <FacadeFrame record={question.comparison} label="Inmueble B" />
+        </div>
+      ) : question.visual === 'norm' ? (
+        <div className="mb-5 flex items-center gap-4 rounded-2xl border border-[#ffd66d]/25 bg-[#332b16] p-4">
+          <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-[#ffd66d]/25 bg-[#4a3b18]">
+            <Scale className="size-7 text-[#ffd66d]" />
+          </div>
+          <p className="text-sm leading-relaxed text-[#e8d9a6]">
+            Una pregunta sencilla sobre la actividad valuatoria en Colombia.
+          </p>
+        </div>
+      ) : (
+        <div className="mb-5 overflow-hidden rounded-2xl">
+          <FacadeFrame record={record} />
+        </div>
+      )}
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5fe8cc]">
         {question.eyebrow}
       </p>
