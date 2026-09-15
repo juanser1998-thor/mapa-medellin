@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { appraisals, type Appraisal } from './data';
 import { FacadePhoto } from './facade-photo';
 
-type Metric = 'area' | 'squareMeter' | 'value';
+type Metric = 'squareMeter' | 'value';
 
 type Choice = {
   id: string;
@@ -39,11 +39,6 @@ type NormQuestion = {
   source: string;
 };
 
-type AreaDatum = {
-  value: number;
-  label: 'Área privada' | 'Área construida' | 'Área de terreno';
-};
-
 function titleCase(value: string) {
   return value
     .toLocaleLowerCase('es-CO')
@@ -56,10 +51,6 @@ function formatMoney(value: number) {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(value);
-}
-
-function formatArea(value: number) {
-  return `${value.toLocaleString('es-CO', { maximumFractionDigits: 2 })} m²`;
 }
 
 function formatSquareMeter(value: number) {
@@ -86,31 +77,29 @@ function deterministicShuffle<T>(values: T[], key: string) {
   return result;
 }
 
-function primaryArea(record: Appraisal): AreaDatum {
+function primaryArea(record: Appraisal) {
   const privateArea = record.areaPrivada ?? 0;
   const builtArea = record.areaConstruida ?? 0;
   const landArea = record.areaTerreno ?? 0;
 
   if (record.tipo === 'APARTAMENTO' && privateArea > 0) {
-    return { value: privateArea, label: 'Área privada' };
+    return privateArea;
   }
   if (record.tipo === 'CASA' && builtArea > 0) {
-    return { value: builtArea, label: 'Área construida' };
+    return builtArea;
   }
-  if (privateArea > 0) return { value: privateArea, label: 'Área privada' };
-  if (builtArea > 0) return { value: builtArea, label: 'Área construida' };
-  return { value: landArea, label: 'Área de terreno' };
+  if (privateArea > 0) return privateArea;
+  if (builtArea > 0) return builtArea;
+  return landArea;
 }
 
 function metricValue(record: Appraisal, metric: Metric) {
-  if (metric === 'area') return primaryArea(record).value;
   if (metric === 'value') return record.valor;
-  const area = primaryArea(record).value;
+  const area = primaryArea(record);
   return area > 0 ? record.valor / area : 0;
 }
 
 function metricLabel(metric: Metric, value: number) {
-  if (metric === 'area') return formatArea(value);
   if (metric === 'value') return formatMoney(value);
   return formatSquareMeter(value);
 }
@@ -134,13 +123,6 @@ function regimeChoices(record: Appraisal) {
 }
 
 function rangeStep(metric: Metric, value: number) {
-  if (metric === 'area') {
-    if (value < 50) return 10;
-    if (value < 120) return 20;
-    if (value < 300) return 50;
-    if (value < 800) return 100;
-    return 250;
-  }
   if (metric === 'squareMeter') {
     if (value < 2_000_000) return 250_000;
     if (value < 5_000_000) return 500_000;
@@ -221,18 +203,6 @@ const normQuestions: NormQuestion[] = [
     fact: 'El informe debe especificar el método utilizado y las consideraciones de la estimación.',
     lesson: 'Un avalúo es una conclusión sustentada, no una cifra aislada.',
     source: 'Decreto 1420 de 1998, artículo 20.',
-  },
-  {
-    prompt: 'En propiedad horizontal, ¿qué área considera el avalúo?',
-    choices: [
-      { id: 'ph-private-area', label: 'El área privada y los derechos de copropiedad', correct: true },
-      { id: 'ph-whole-lot', label: 'Todo el lote del conjunto como área exclusiva', correct: false },
-      { id: 'ph-common-only', label: 'Únicamente las zonas comunes', correct: false },
-      { id: 'ph-facade-only', label: 'Solo el área visible de la fachada', correct: false },
-    ],
-    fact: 'Se consideran las áreas privadas y los derechos derivados de los coeficientes de copropiedad.',
-    lesson: 'En PH, el área privada no equivale a todas las áreas comunes del conjunto.',
-    source: 'Decreto 1420 de 1998, artículo 21.',
   },
 ];
 
@@ -353,16 +323,17 @@ function attributeQuestionFor(record: Appraisal): TriviaQuestion {
 }
 
 function findComparison(record: Appraisal) {
-  const ownArea = primaryArea(record).value;
+  const ownArea = primaryArea(record);
   const candidates = appraisals.filter((candidate) => {
     if (candidate.id === record.id || !candidate.foto) return false;
-    const candidateArea = primaryArea(candidate).value;
+    const candidateArea = primaryArea(candidate);
     const valueRatio = candidate.valor / record.valor;
     const squareMeterRatio =
       metricValue(candidate, 'squareMeter') /
       metricValue(record, 'squareMeter');
     return (
       candidate.tipo === record.tipo &&
+      candidate.regimen === record.regimen &&
       candidateArea > 0 &&
       ownArea > 0 &&
       candidateArea / ownArea >= 0.68 &&
@@ -387,8 +358,8 @@ function findComparison(record: Appraisal) {
 function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
   const comparison = findComparison(record);
   if (!comparison) return null;
-  const metric = (['value', 'squareMeter', 'area'] as Metric[])[
-    hashText(`${record.id}:comparison-metric`) % 3
+  const metric = (['value', 'squareMeter'] as Metric[])[
+    hashText(`${record.id}:comparison-metric`) % 2
   ];
   const firstValue = metricValue(record, metric);
   const secondValue = metricValue(comparison, metric);
@@ -396,12 +367,10 @@ function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
   const questionByMetric: Record<Metric, string> = {
     value: '¿Cuál tiene mayor valor comercial?',
     squareMeter: '¿Cuál tiene el m² más costoso?',
-    area: '¿Cuál tiene mayor área registrada?',
   };
   const lessonByMetric: Record<Metric, string> = {
     value: 'Una fachada similar no implica el mismo valor comercial.',
     squareMeter: 'El valor por m² revela contrastes que el tamaño no muestra.',
-    area: 'El inmueble más grande no siempre es el de mayor valor.',
   };
   return {
     eyebrow: 'Duelo de fachadas',
@@ -418,24 +387,16 @@ function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
 }
 
 function buildQuestionPool(record: Appraisal): TriviaQuestion[] {
-  const area = primaryArea(record);
   const squareMeter = metricValue(record, 'squareMeter');
   const norm = normQuestionFor(record);
   const comparison = comparisonQuestionFor(record);
   const questions: TriviaQuestion[] = [
     attributeQuestionFor(record),
     {
-      eyebrow: 'Estima el espacio',
-      prompt: `¿En qué rango está su ${area.label.toLocaleLowerCase('es-CO')}?`,
-      choices: metricRangeChoices(record, 'area'),
-      fact: `${area.label} registrada: ${formatArea(area.value)}.`,
-      lesson: 'El área influye, pero ubicación, uso y mercado también modifican el valor.',
-    },
-    {
       eyebrow: 'Piensa como avaluador',
       prompt: '¿En qué rango está el valor por m²?',
       choices: metricRangeChoices(record, 'squareMeter'),
-      fact: `${formatMoney(record.valor)} ÷ ${formatArea(area.value)} = ${formatSquareMeter(squareMeter)}.`,
+      fact: `Valor por m² registrado: ${formatSquareMeter(squareMeter)}.`,
       lesson: 'El valor por m² permite comparar inmuebles de tamaños distintos.',
     },
     {
