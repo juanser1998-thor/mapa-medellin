@@ -526,7 +526,7 @@ export default function Home() {
         }}
       >
         <SheetContent
-          className="w-[min(94vw,520px)] border-l-[#73ffe1]/15 bg-[#081722]/98 p-0 text-[#edf8f6] backdrop-blur-xl sm:max-w-[520px]"
+          className="w-[min(96vw,640px)] border-l-[#73ffe1]/15 bg-[#081722]/98 p-0 text-[#edf8f6] backdrop-blur-xl sm:max-w-[640px]"
           aria-describedby="appraisal-description"
         >
           {selected && selectedGroup && (
@@ -535,7 +535,7 @@ export default function Home() {
                 <SheetHeader className="sr-only">
                   <SheetTitle>Trivia de avalúos en {selected.barrio}</SheetTitle>
                   <SheetDescription id="appraisal-description">
-                    Ronda interactiva antes de revelar la ficha del inmueble.
+                    Una pregunta interactiva antes de revelar la ficha del inmueble.
                   </SheetDescription>
                 </SheetHeader>
                 <AppraisalTrivia
