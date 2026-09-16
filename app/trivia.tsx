@@ -2,9 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import {
+  ArrowRight,
   Check,
+  Crown,
+  Eye,
+  RotateCcw,
   Scale,
   Sparkles,
+  Trophy,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -264,7 +269,7 @@ function stratumChoices(record: Appraisal) {
   );
 }
 
-function useChoices(record: Appraisal) {
+function buildUseChoices(record: Appraisal) {
   const catalog = [
     'RESIDENCIAL',
     'COMERCIO Y SERVICIOS',
@@ -338,7 +343,7 @@ function attributeQuestionFor(record: Appraisal): TriviaQuestion {
     return {
       eyebrow: 'Uso registrado',
       prompt: '¿Cuál es el uso principal registrado para este inmueble?',
-      choices: useChoices(record),
+      choices: buildUseChoices(record),
       fact: `Uso registrado: ${titleCase(record.uso)}.`,
       lesson: 'El uso permitido y efectivo influye en los comparables adecuados.',
     };
@@ -474,6 +479,13 @@ function buildQuestionPool(record: Appraisal): TriviaQuestion[] {
   return questions;
 }
 
+function scoreLabel(score: number) {
+  if (score === 4) return 'Ojo de perito 👑';
+  if (score === 3) return 'Casi un experto';
+  if (score === 2) return 'Buen ojo inmobiliario';
+  return 'Mejor llamemos a un avaluador 😅';
+}
+
 function QuizChoice({
   choice,
   selected,
@@ -518,27 +530,136 @@ export function AppraisalTrivia({
   record: Appraisal;
   onReveal: () => void;
 }) {
-  const question = useMemo(() => {
+  const questions = useMemo(() => {
     const pool = buildQuestionPool(record);
-    return pool[hashText(`${record.id}:single-question`) % pool.length];
+    return deterministicShuffle(pool, `${record.id}:four-question-round`).slice(0, 4);
   }, [record]);
+  const [phase, setPhase] = useState<'intro' | 'questions' | 'result'>('intro');
+  const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
+  const [score, setScore] = useState(0);
+  const question = questions[questionIndex];
   const answered = selectedChoice !== null;
 
   const choose = (choice: Choice) => {
     if (answered) return;
     setSelectedChoice(choice);
+    if (choice.correct) setScore((current) => current + 1);
   };
 
+  const advance = () => {
+    if (questionIndex === questions.length - 1) {
+      setPhase('result');
+      return;
+    }
+    setQuestionIndex((current) => current + 1);
+    setSelectedChoice(null);
+  };
+
+  const reset = () => {
+    setPhase('intro');
+    setQuestionIndex(0);
+    setSelectedChoice(null);
+    setScore(0);
+  };
+
+  if (phase === 'intro') {
+    return (
+      <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
+        <div className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
+          <Eye className="size-4" /> Experiencia interactiva
+        </div>
+        <h2 className="max-w-sm text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-[#102723]">
+          ¿Tienes ojo de avaluador?
+        </h2>
+        <p className="mt-3 text-base leading-relaxed text-[#506d66]">
+          Supera cuatro preguntas elegidas para este inmueble y descubre qué tan buen ojo tienes.
+        </p>
+        <div className="my-6">
+          <FacadePhoto src={record.foto} barrio={record.barrio} className="mb-0" eager />
+        </div>
+        <div className="grid grid-cols-2 gap-3 text-sm text-[#506d66]">
+          <div className="rounded-xl border border-[#c9d9d5] bg-white p-3 shadow-sm">
+            <strong className="block text-lg text-[#183c35]">4</strong> preguntas variadas
+          </div>
+          <div className="rounded-xl border border-[#c9d9d5] bg-white p-3 shadow-sm">
+            <strong className="block text-lg text-[#183c35]">1</strong> resultado final
+          </div>
+        </div>
+        <Button
+          size="lg"
+          className="mt-6 h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
+          onClick={() => setPhase('questions')}
+        >
+          Comenzar reto <ArrowRight className="size-5" />
+        </Button>
+        <p className="mt-4 text-center text-xs text-[#718982]">
+          La ficha completa se revelará al terminar la ronda.
+        </p>
+      </div>
+    );
+  }
+
+  if (phase === 'result') {
+    return (
+      <div className="relative flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8 text-center">
+        <div className="pointer-events-none absolute inset-x-8 top-8 h-52 rounded-full bg-[#57cdb2]/15 blur-3xl" />
+        <div className="relative mx-auto grid size-20 place-items-center rounded-full border border-[#9fd7ca] bg-[#e8f7f3] shadow-[0_14px_38px_rgba(25,125,103,.16)]">
+          {score === 4 ? (
+            <Crown className="size-9 text-[#c39300]" />
+          ) : (
+            <Trophy className="size-9 text-[#168a77]" />
+          )}
+        </div>
+        <p className="relative mt-5 text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
+          Resultado final
+        </p>
+        <h2 className="relative mt-2 text-3xl font-medium tracking-[-0.045em] text-[#102723]">
+          {scoreLabel(score)}
+        </h2>
+        <p className="relative mt-3 text-lg text-[#506d66]">
+          Acertaste <strong className="text-[#183c35]">{score} de 4</strong> preguntas.
+        </p>
+        <div className="relative my-6 rounded-2xl border border-[#c9d9d5] bg-white p-5 shadow-sm">
+          <p className="text-sm leading-relaxed text-[#506d66]">
+            Cada respuesta fue construida con los datos reales disponibles para este avalúo.
+          </p>
+        </div>
+        <div className="grid gap-3">
+          <Button
+            size="lg"
+            className="h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
+            onClick={onReveal}
+          >
+            Revelar ficha completa <Sparkles className="size-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            className="text-[#506d66] hover:bg-[#edf7f4] hover:text-[#183c35]"
+            onClick={reset}
+          >
+            <RotateCcw className="size-4" /> Jugar otra vez
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
+    <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-7">
       <div className="mb-5 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
-          ¿Tienes ojo de avaluador?
+          Ronda progresiva
         </p>
         <span className="rounded-full border border-[#b9d9d1] bg-[#eef8f5] px-3 py-1.5 text-xs font-semibold text-[#45655e]">
-          1 pregunta
+          {questionIndex + 1} de 4
         </span>
+      </div>
+      <div className="mb-5 h-2 overflow-hidden rounded-full bg-[#dceae6]" aria-hidden="true">
+        <div
+          className="h-full rounded-full bg-[#1b9b84] transition-[width] duration-300"
+          style={{ width: `${((questionIndex + 1) / 4) * 100}%` }}
+        />
       </div>
       {question.visual === 'comparison' && question.comparison ? (
         <div className="mb-6 grid grid-cols-2 gap-3">
@@ -598,9 +719,10 @@ export function AppraisalTrivia({
         <Button
           size="lg"
           className="mt-5 h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
-          onClick={onReveal}
+          onClick={advance}
         >
-          Ver ficha completa <Sparkles className="size-5" />
+          {questionIndex === 3 ? 'Ver resultado' : 'Siguiente pregunta'}
+          <ArrowRight className="size-5" />
         </Button>
       )}
     </div>
