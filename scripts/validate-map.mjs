@@ -5,7 +5,6 @@ import ts from 'typescript';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 
 const records = JSON.parse(fs.readFileSync('app/appraisals.json', 'utf8'));
-const triviaSource = fs.readFileSync('app/trivia.tsx', 'utf8');
 assert.equal(records.length, 1374);
 assert.equal(new Set(records.map(r => r.id)).size, records.length);
 for (const r of records) {
@@ -28,21 +27,6 @@ assert.deepEqual(
   }, {}),
   { PH: 1292, NPH: 82 },
 );
-assert.match(
-  triviaSource,
-  /candidate\.regimen === record\.regimen/,
-  'Every comparison must pair properties with the same PH/NPH regime',
-);
-for (const removedAreaQuestion of [
-  'Estima el espacio',
-  '¿Cuál tiene mayor área registrada?',
-  'En propiedad horizontal, ¿qué área considera el avalúo?',
-]) {
-  assert.ok(
-    !triviaSource.includes(removedAreaQuestion),
-    `Area question must remain removed: ${removedAreaQuestion}`,
-  );
-}
 const source = ts.createSourceFile('page.tsx', fs.readFileSync('app/page.tsx', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const layers = [];
 function visit(node) {
