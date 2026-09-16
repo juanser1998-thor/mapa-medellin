@@ -167,7 +167,7 @@ export default function Home() {
     maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/dark',
+      style: 'https://tiles.openfreemap.org/styles/bright',
       ...cityView,
       canvasContextAttributes: { antialias: true },
       maxPitch: 78,
@@ -184,8 +184,8 @@ export default function Home() {
       setReady(true);
       map.setLight({
         anchor: 'viewport',
-        color: '#ffffff',
-        intensity: 0.38,
+        color: '#f8fffd',
+        intensity: 0.5,
         position: [1.15, 210, 35],
       });
       const vectorSource = Object.entries(map.getStyle().sources).find(
@@ -201,7 +201,7 @@ export default function Home() {
               type: 'fill-extrusion',
               minzoom: 12.2,
               paint: {
-                'fill-extrusion-color': '#566873',
+                'fill-extrusion-color': '#b9c9c5',
                 'fill-extrusion-height': [
                   '*',
                   [
@@ -431,7 +431,7 @@ export default function Home() {
   };
 
   return (
-    <main className="dark relative h-dvh min-h-[540px] overflow-hidden bg-[#071118] text-[#edf8f6]">
+    <main className="relative h-dvh min-h-[540px] overflow-hidden bg-[#e9efed] text-[#102723]">
       <div
         ref={containerRef}
         className="absolute inset-0"
@@ -440,9 +440,9 @@ export default function Home() {
       />
 
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-4 p-4 md:p-7">
-        <div className="pointer-events-auto max-w-[min(88vw,460px)] rounded-2xl border border-[#73ffe1]/20 bg-[#081722]/90 p-4 shadow-[0_20px_60px_rgba(0,0,0,.48)] backdrop-blur-xl md:p-5">
-          <div className="mb-3 flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#57e6c8]">
-            <span className="inline-flex size-7 items-center justify-center rounded-full bg-[#0d3c3a] ring-1 ring-[#57e6c8]/35">
+        <div className="pointer-events-auto max-w-[min(88vw,460px)] rounded-2xl border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_rgba(24,52,47,.16)] backdrop-blur-xl md:p-5">
+          <div className="mb-3 flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#168a77]">
+            <span className="inline-flex size-7 items-center justify-center rounded-full bg-[#d8f5ef] ring-1 ring-[#168a77]/15">
               <Building2 className="size-4" />
             </span>
             Appraiser · Medellín
@@ -450,7 +450,7 @@ export default function Home() {
           <h1 className="text-2xl font-medium tracking-[-0.035em] md:text-3xl">
             Avalúos que cuentan la ciudad
           </h1>
-          <p className="mt-1 text-sm text-[#abc2bf] md:text-base">
+          <p className="mt-1 text-sm text-[#526762] md:text-base">
             Toca una esfera y demuestra cuánto sabes de avalúos.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -464,7 +464,7 @@ export default function Home() {
               <strong className="text-lg font-medium">{groups.length.toLocaleString('es-CO')}</strong>{' '}
               ubicaciones
             </span>
-            <span className="flex items-center gap-1.5 text-[#abc2bf]">
+            <span className="flex items-center gap-1.5 text-[#526762]">
               <BadgeDollarSign className="size-4" /> color = valor
             </span>
           </div>
@@ -474,7 +474,7 @@ export default function Home() {
       <div className="absolute bottom-5 left-4 z-10 flex flex-wrap gap-2 md:bottom-7 md:left-7">
         <Button
           size="lg"
-          className="h-12 rounded-xl border border-[#62f2d4]/30 bg-[#0d4b45] px-4 text-white shadow-[0_10px_32px_rgba(0,0,0,.4)] hover:bg-[#12645a]"
+          className="h-12 rounded-xl border border-[#0b5748]/15 bg-[#123e36] px-4 text-white shadow-[0_10px_28px_rgba(24,52,47,.2)] hover:bg-[#0b5748]"
           onClick={() => setTouring((value) => !value)}
         >
           {touring ? <Pause className="size-5" /> : <Play className="size-5" />}
@@ -483,18 +483,18 @@ export default function Home() {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 rounded-xl border-[#b7d4cf]/25 bg-[#081722]/90 px-4 text-[#edf8f6] shadow-lg backdrop-blur-md hover:bg-[#122733] hover:text-white"
+          className="h-12 rounded-xl border-white/90 bg-white/92 px-4 text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723]"
           onClick={resetView}
         >
           <LocateFixed className="size-5" /> Vista general
         </Button>
       </div>
 
-      <div className="pointer-events-none absolute bottom-20 right-4 z-10 hidden rounded-xl border border-[#73ffe1]/20 bg-[#081722]/90 px-3 py-2 text-xs text-[#edf8f6] shadow-[0_12px_36px_rgba(0,0,0,.45)] backdrop-blur-md sm:block md:bottom-7 md:right-20">
+      <div className="pointer-events-none absolute bottom-20 right-4 z-10 hidden rounded-xl border border-white/80 bg-white/92 px-3 py-2 text-xs text-[#183c35] shadow-[0_12px_32px_rgba(24,52,47,.16)] backdrop-blur-md sm:block md:bottom-7 md:right-20">
         <div className="mb-1.5 flex items-center gap-1.5 font-medium">
-          <Sparkles className="size-3.5 text-[#57e6c8]" /> Valor comercial
+          <Sparkles className="size-3.5 text-[#168a77]" /> Valor comercial
         </div>
-        <div className="flex flex-wrap gap-3 text-[#b8ccc9]">
+        <div className="flex flex-wrap gap-3 text-[#526762]">
           {valueRanges.map((range) => (
             <span key={range.label} className="flex items-center gap-1.5">
               <i
@@ -508,8 +508,8 @@ export default function Home() {
       </div>
 
       {!ready && (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-[#071118]">
-          <div className="flex items-center gap-3 rounded-xl border border-[#73ffe1]/20 bg-[#0b1a24] px-5 py-3 text-[#edf8f6] shadow-2xl">
+        <div className="absolute inset-0 z-20 grid place-items-center bg-[#e9efed]">
+          <div className="flex items-center gap-3 rounded-xl border border-white/80 bg-white px-5 py-3 text-[#183c35] shadow-xl">
             <span className="size-3 animate-pulse rounded-full bg-[#08b89d]" />{' '}
             Preparando Medellín en 3D…
           </div>
@@ -526,7 +526,7 @@ export default function Home() {
         }}
       >
         <SheetContent
-          className="w-[min(96vw,640px)] border-l-[#73ffe1]/15 bg-[#081722]/98 p-0 text-[#edf8f6] backdrop-blur-xl sm:max-w-[640px]"
+          className="w-[min(96vw,640px)] border-l-white/70 bg-white/98 p-0 text-[#102723] backdrop-blur-xl sm:max-w-[640px]"
           aria-describedby="appraisal-description"
         >
           {selected && selectedGroup && (
@@ -546,8 +546,8 @@ export default function Home() {
               </>
             ) : (
               <>
-              <SheetHeader className="border-b border-[#8db5ae]/15 px-6 pb-5 pt-7">
-                <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#57e6c8]">
+              <SheetHeader className="border-b border-[#dbe5e2] px-6 pb-5 pt-7">
+                <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">
                   <span
                     className="size-2 rounded-full"
                     style={{ background: colorForValue(selected.valor) }}
@@ -568,11 +568,11 @@ export default function Home() {
 
               <div className="flex-1 overflow-y-auto px-6 py-6">
                 <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} barrio={selected.barrio} />
-                <p className="text-sm text-[#9fb8b4]">Valor comercial</p>
-                <p className="mt-1 text-[clamp(1.8rem,7vw,2.7rem)] font-medium tracking-[-0.055em] text-[#f4fffd]">
+                <p className="text-sm text-[#61736f]">Valor comercial</p>
+                <p className="mt-1 text-[clamp(1.8rem,7vw,2.7rem)] font-medium tracking-[-0.055em] text-[#102723]">
                   {formatMoney(selected.valor)}
                 </p>
-                <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#6d918a]/20">
+                <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#dbe5e2]">
                   {[
                     ['Área privada', formatArea(selected.areaPrivada)],
                     ['Área construida', formatArea(selected.areaConstruida)],
@@ -583,22 +583,22 @@ export default function Home() {
                     ['Estado', selected.estado],
                     ['Sector', selected.sector || 'Sin dato'],
                   ].map(([label, value]) => (
-                    <div key={label} className="min-h-24 bg-[#0d202b] p-4">
-                      <p className="text-xs uppercase tracking-[0.1em] text-[#8fa8a4]">
+                    <div key={label} className="min-h-24 bg-[#f6f9f8] p-4">
+                      <p className="text-xs uppercase tracking-[0.1em] text-[#70807c]">
                         {label}
                       </p>
                       <p className="mt-2 text-base font-medium">{value}</p>
                     </div>
                   ))}
                 </div>
-                <p className="mt-5 text-xs leading-relaxed text-[#8fa8a4]">
+                <p className="mt-5 text-xs leading-relaxed text-[#70807c]">
                   Información anonimizada para exhibición. No se muestran
                   cliente, folio ni dirección exacta.
                 </p>
               </div>
 
               {selectedGroup.records.length > 1 && (
-                <div className="flex items-center justify-between border-t border-[#8db5ae]/15 p-4">
+                <div className="flex items-center justify-between border-t border-[#dbe5e2] p-4">
                   <Button
                     variant="outline"
                     size="lg"
@@ -615,7 +615,7 @@ export default function Home() {
                   >
                     <ChevronLeft /> Anterior
                   </Button>
-                  <span className="text-sm text-[#9fb8b4]">
+                  <span className="text-sm text-[#61736f]">
                     {recordIndex + 1} de {selectedGroup.records.length}
                   </span>
                   <Button

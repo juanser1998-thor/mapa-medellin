@@ -487,11 +487,11 @@ function QuizChoice({
 }) {
   const stateClass = answered
     ? choice.correct
-      ? 'border-[#58f0bd] bg-[#103f35] text-white shadow-[0_0_28px_rgba(75,239,184,.16)]'
+      ? 'border-[#36ad8c]/45 bg-[#e4f8f1] text-[#123e36] shadow-[0_10px_28px_rgba(30,126,101,.1)]'
       : selected
-        ? 'border-[#ff668f] bg-[#421c2c] text-white'
-        : 'border-[#8ba6a1]/14 bg-[#0c202b]/70 text-[#718984]'
-    : 'border-[#8ba6a1]/22 bg-[#0c202b] text-[#edf8f6] hover:border-[#60e7cf]/65 hover:bg-[#12313b] active:scale-[.985]';
+        ? 'border-[#e45b7d]/45 bg-[#fff0f4] text-[#7e2941]'
+        : 'border-[#d7e2df] bg-[#f4f7f6] text-[#83918e]'
+    : 'border-[#c9d9d5] bg-white text-[#183c35] shadow-sm hover:border-[#36ad97] hover:bg-[#f0faf7] active:scale-[.985]';
 
   return (
     <button
@@ -502,10 +502,10 @@ function QuizChoice({
     >
       <span>{choice.label}</span>
       {answered && choice.correct && (
-        <Check className="size-5 shrink-0 text-[#74ffd1]" aria-hidden="true" />
+        <Check className="size-5 shrink-0 text-[#128c69]" aria-hidden="true" />
       )}
       {answered && selected && !choice.correct && (
-        <X className="size-5 shrink-0 text-[#ff7a9f]" aria-hidden="true" />
+        <X className="size-5 shrink-0 text-[#c94468]" aria-hidden="true" />
       )}
     </button>
   );
@@ -533,10 +533,10 @@ export function AppraisalTrivia({
   return (
     <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.17em] text-[#61efd1]">
+        <p className="text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
           ¿Tienes ojo de avaluador?
         </p>
-        <span className="rounded-full border border-[#76ffe2]/20 bg-[#0c202b] px-3 py-1.5 text-xs font-semibold text-[#b8d2cd]">
+        <span className="rounded-full border border-[#b9d9d1] bg-[#eef8f5] px-3 py-1.5 text-xs font-semibold text-[#45655e]">
           1 pregunta
         </span>
       </div>
@@ -549,17 +549,17 @@ export function AppraisalTrivia({
         <FacadePhoto src={record.foto} barrio={record.barrio} className="mb-6" eager />
       )}
       {question.visual === 'norm' && (
-        <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#ffd66d]/25 bg-[#332b16] p-3.5">
-          <div className="grid size-11 shrink-0 place-items-center rounded-lg border border-[#ffd66d]/25 bg-[#4a3b18]">
-            <Scale className="size-5 text-[#ffd66d]" />
+        <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#ead28a] bg-[#fff8df] p-3.5">
+          <div className="grid size-11 shrink-0 place-items-center rounded-lg border border-[#e2c568] bg-[#fff1bd]">
+            <Scale className="size-5 text-[#916d00]" />
           </div>
-          <p className="text-sm leading-relaxed text-[#e8d9a6]">Norma fácil sobre la actividad valuatoria en Colombia.</p>
+          <p className="text-sm leading-relaxed text-[#6f5913]">Norma fácil sobre la actividad valuatoria en Colombia.</p>
         </div>
       )}
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5fe8cc]">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">
         {question.eyebrow}
       </p>
-      <h2 className="mt-2 text-3xl font-medium leading-tight tracking-[-0.045em] text-white">
+      <h2 className="mt-2 text-3xl font-medium leading-tight tracking-[-0.045em] text-[#102723]">
         {question.prompt}
       </h2>
       <div className="mt-5 grid gap-2.5">
@@ -577,27 +577,27 @@ export function AppraisalTrivia({
         <div
           className={`mt-5 rounded-2xl border p-4 ${
             selectedChoice.correct
-              ? 'border-[#60f0c2]/25 bg-[#0d332d]'
-              : 'border-[#ff6d94]/22 bg-[#321b29]'
+              ? 'border-[#54b99a]/35 bg-[#e7f8f1]'
+              : 'border-[#e67a96]/35 bg-[#fff1f4]'
           }`}
           aria-live="polite"
         >
-          <p className="font-semibold text-white">
+          <p className="font-semibold text-[#183c35]">
             {selectedChoice.correct
               ? '¡Correcto!'
               : `Respuesta correcta: ${question.choices.find((choice) => choice.correct)?.label}`}
           </p>
-          <p className="mt-2 text-sm text-[#d0dfdc]">Dato real: {question.fact}</p>
-          <p className="mt-2 text-sm text-[#72e8d0]">{question.lesson}</p>
+          <p className="mt-2 text-sm text-[#405d56]">Dato real: {question.fact}</p>
+          <p className="mt-2 text-sm text-[#147865]">{question.lesson}</p>
           {question.source && (
-            <p className="mt-3 text-xs text-[#a99f7e]">Referencia: {question.source}</p>
+            <p className="mt-3 text-xs text-[#7d7353]">Referencia: {question.source}</p>
           )}
         </div>
       )}
       {answered && (
         <Button
           size="lg"
-          className="mt-5 h-14 rounded-xl bg-[#13a98e] text-base font-semibold text-white hover:bg-[#18bfa0]"
+          className="mt-5 h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
           onClick={onReveal}
         >
           Ver ficha completa <Sparkles className="size-5" />
