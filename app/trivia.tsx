@@ -392,25 +392,24 @@ function findComparison(record: Appraisal) {
 function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
   const comparison = findComparison(record);
   if (!comparison) return null;
-  const metric = (['value', 'squareMeter', 'area'] as Metric[])[
-    hashText(`${record.id}:comparison-metric`) % 3
-  ];
+  const comparisonVariant = hashText(`${record.id}:comparison-metric`) % 3;
+  const metric: Metric = comparisonVariant === 1 ? 'squareMeter' : 'value';
   const firstValue = metricValue(record, metric);
   const secondValue = metricValue(comparison, metric);
   const firstWins = firstValue > secondValue;
-  const questionByMetric: Record<Metric, string> = {
-    value: '¿Cuál tiene mayor valor comercial?',
-    squareMeter: '¿Cuál tiene el m² más costoso?',
-    area: '¿Cuál tiene mayor área registrada?',
-  };
-  const lessonByMetric: Record<Metric, string> = {
-    value: 'Una fachada similar no implica el mismo valor comercial.',
-    squareMeter: 'El valor por m² revela contrastes que el tamaño no muestra.',
-    area: 'El inmueble más grande no siempre es el de mayor valor.',
-  };
+  const prompt = comparisonVariant === 2
+    ? '¿Cuál de los dos inmuebles parece tener mayor valor comercial según su fachada y los acabados visibles?'
+    : metric === 'squareMeter'
+      ? '¿Cuál tiene el m² más costoso?'
+      : '¿Cuál tiene mayor valor comercial?';
+  const lesson = comparisonVariant === 2
+    ? 'La apariencia orienta, pero el avalúo también considera ubicación, áreas, uso y mercado.'
+    : metric === 'squareMeter'
+      ? 'El valor por m² revela contrastes que el tamaño no muestra.'
+      : 'Una fachada similar no implica el mismo valor comercial.';
   return {
     eyebrow: 'Duelo de fachadas',
-    prompt: questionByMetric[metric],
+    prompt,
     visual: 'comparison',
     comparison,
     choices: [
@@ -418,7 +417,7 @@ function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
       { id: 'comparison-b', label: 'Inmueble B', correct: !firstWins },
     ],
     fact: `A: ${metricLabel(metric, firstValue)} · B: ${metricLabel(metric, secondValue)}.`,
-    lesson: lessonByMetric[metric],
+    lesson,
   };
 }
 
