@@ -26,6 +26,7 @@ import { appraisals, type Appraisal } from './data';
 import { neonSphere } from './neon-sphere';
 import { FacadePhoto } from './facade-photo';
 import { AppraisalTrivia } from './trivia';
+import { IntroScreen } from './intro-screen';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type AppraisalGroup = {
@@ -109,6 +110,7 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
+  const [introOpen, setIntroOpen] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [recordIndex, setRecordIndex] = useState(0);
   const [touring, setTouring] = useState(false);
@@ -439,6 +441,15 @@ export default function Home() {
         aria-label="Mapa tridimensional interactivo de avalúos en Medellín"
       />
 
+      {introOpen && (
+        <IntroScreen
+          ready={ready}
+          appraisalCount={appraisals.length}
+          locationCount={groups.length}
+          onEnter={() => setIntroOpen(false)}
+        />
+      )}
+
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-4 p-4 md:p-7">
         <div className="pointer-events-auto max-w-[min(88vw,460px)] rounded-2xl border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_rgba(24,52,47,.16)] backdrop-blur-xl md:p-5">
           <div className="mb-3 flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#168a77]">
@@ -507,7 +518,7 @@ export default function Home() {
         </div>
       </div>
 
-      {!ready && (
+      {!ready && !introOpen && (
         <div className="absolute inset-0 z-20 grid place-items-center bg-[#e9efed]">
           <div className="flex items-center gap-3 rounded-xl border border-white/80 bg-white px-5 py-3 text-[#183c35] shadow-xl">
             <span className="size-3 animate-pulse rounded-full bg-[#08b89d]" />{' '}
