@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Building2,
   Check,
+  Clock3,
   Crown,
   Eye,
+  Flame,
   Layers3,
   MapPin,
   RotateCcw,
@@ -51,6 +53,90 @@ type AreaDatum = {
   value: number;
   label: 'Área privada' | 'Área construida' | 'Área de terreno';
 };
+
+type FeedbackState = 'correct' | 'incorrect' | 'timeout' | null;
+
+const QUESTION_SECONDS = 15;
+const correctMessages = [
+  '¡Boom! Sos una máquina 🔥',
+  '¡Clave! Ojo de experto ✨',
+  '¡Eso! La rompiste 🏆',
+  '¡Precisión de perito! 🎯',
+  '¡Brillante! Sumás otra victoria',
+];
+const incorrectMessages = [
+  'Ups, esa se fue de vacaciones 😅',
+  'Casi, el dato hizo pirueta 😵‍💫',
+  'Tranqui, esa venía con truco 😉',
+  'No pasa nada, seguimos afinando 🧭',
+  'Esa se escondió muy bien 👀',
+];
+
+function randomUnusedMessage(messages: string[], usedMessages: Set<string>) {
+  const available = messages.filter((message) => !usedMessages.has(message));
+  const pool = available.length > 0 ? available : messages;
+  const selected = pool[Math.floor(Math.random() * pool.length)];
+  usedMessages.add(selected);
+  return selected;
+}
+
+function AppraiserMascot({ mood = 'neutral' }: { mood?: 'neutral' | 'correct' | 'incorrect' }) {
+  const label = mood === 'correct'
+    ? 'Mascota Appraiser celebrando'
+    : mood === 'incorrect'
+      ? 'Mascota Appraiser reaccionando con humor'
+      : 'Mascota Appraiser lista para jugar';
+
+  return (
+    <div className={`brand-mascot brand-mascot--${mood}`}>
+      <svg viewBox="0 0 120 120" aria-label={label}>
+        <ellipse className="brand-mascot__orbit" cx="60" cy="60" rx="48" ry="24" transform="rotate(-24 60 60)" />
+        <path className="brand-mascot__body" d="M39 82 55 36c1.8-5 8.8-5 10.6-.2L82 82c1.3 3.8-1.5 7.8-5.6 7.8H44.6c-4.1 0-6.9-4-5.6-7.8Z" />
+        <path className="brand-mascot__shine" d="M55 42c2-4 7-4 9 0l3 8H52l3-8Z" />
+        {mood === 'correct' ? (
+          <>
+            <path className="brand-mascot__face" d="M50 64c2.5-4 6.5-4 9 0M66 64c2.5-4 6.5-4 9 0" />
+            <path className="brand-mascot__mouth brand-mascot__mouth--happy" d="M53 72c4 7 12 7 16 0" />
+            <path className="brand-mascot__arm" d="M42 69 29 59M79 69l13-12" />
+          </>
+        ) : mood === 'incorrect' ? (
+          <>
+            <circle className="brand-mascot__eye" cx="55" cy="63" r="2.8" />
+            <path className="brand-mascot__face" d="M67 63c2-2 5-2 7 0" />
+            <path className="brand-mascot__mouth" d="M53 75c4-4 8 4 12 0 3-3 5-1 7 1" />
+            <path className="brand-mascot__arm" d="M42 70 31 76M79 70l10 7" />
+          </>
+        ) : (
+          <>
+            <circle className="brand-mascot__eye" cx="55" cy="63" r="2.8" />
+            <circle className="brand-mascot__eye" cx="69" cy="63" r="2.8" />
+            <path className="brand-mascot__mouth" d="M56 73c3 2 7 2 10 0" />
+            <path className="brand-mascot__arm" d="M42 70 31 69M79 70l11-1" />
+          </>
+        )}
+      </svg>
+    </div>
+  );
+}
+
+function CelebrationParticles() {
+  const colors = ['#1bb58b', '#f2bd34', '#77d9c1', '#ffda6a'];
+  return (
+    <div className="quiz-confetti" aria-hidden="true">
+      {Array.from({ length: 18 }, (_, index) => (
+        <span
+          key={index}
+          className="quiz-confetti__piece"
+          style={{
+            left: `${6 + ((index * 29) % 88)}%`,
+            animationDelay: `${(index % 6) * 75}ms`,
+            backgroundColor: colors[index % colors.length],
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function titleCase(value: string) {
   return value
@@ -558,7 +644,7 @@ function QuizChoice({
     ? choice.correct
       ? 'border-[#36ad8c]/45 bg-[#e4f8f1] text-[#123e36] shadow-[0_10px_28px_rgba(30,126,101,.1)]'
       : selected
-        ? 'border-[#e45b7d]/45 bg-[#fff0f4] text-[#7e2941]'
+        ? 'border-[#ee9a62]/50 bg-[#fff3e9] text-[#8a4b25]'
         : 'border-[#d7e2df] bg-[#f4f7f6] text-[#83918e]'
     : 'border-[#c9d9d5] bg-white text-[#183c35] shadow-sm hover:border-[#36ad97] hover:bg-[#f0faf7] active:scale-[.985]';
 
@@ -602,13 +688,89 @@ export function AppraisalTrivia({
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [score, setScore] = useState(0);
+  const [answerResult, setAnswerResult] = useState<FeedbackState>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const usedFeedbackMessagesRef = useRef<Set<string>>(new Set());
   const question = questions[questionIndex];
-  const answered = selectedChoice !== null;
+  const answered = answerResult !== null;
+
+  const prepareAudio = useCallback(() => {
+    if (!audioContextRef.current) audioContextRef.current = new AudioContext();
+    if (audioContextRef.current.state === 'suspended') void audioContextRef.current.resume();
+  }, []);
+
+  const playFeedbackSound = useCallback((result: Exclude<FeedbackState, null>) => {
+    const context = audioContextRef.current;
+    if (!context) return;
+    if (context.state === 'suspended') void context.resume();
+    const now = context.currentTime;
+    const gain = context.createGain();
+    gain.connect(context.destination);
+
+    if (result === 'correct') {
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+      [660, 880].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+        oscillator.connect(gain);
+        oscillator.start(now + index * 0.1);
+        oscillator.stop(now + 0.2 + index * 0.1);
+      });
+    } else {
+      const oscillator = context.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(240, now);
+      oscillator.frequency.exponentialRampToValueAtTime(165, now + 0.22);
+      gain.gain.setValueAtTime(0.035, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.23);
+      oscillator.connect(gain);
+      oscillator.start(now);
+      oscillator.stop(now + 0.24);
+    }
+  }, []);
+
+  const settleAnswer = useCallback((result: Exclude<FeedbackState, null>) => {
+    setAnswerResult(result);
+    if (result === 'correct') {
+      setScore((current) => current + 1);
+      setStreak((current) => {
+        const next = current + 1;
+        setBestStreak((best) => Math.max(best, next));
+        return next;
+      });
+      setFeedbackText(randomUnusedMessage(correctMessages, usedFeedbackMessagesRef.current));
+      navigator.vibrate?.(22);
+    } else {
+      setStreak(0);
+      setFeedbackText(randomUnusedMessage(incorrectMessages, usedFeedbackMessagesRef.current));
+      navigator.vibrate?.([18, 28, 18]);
+    }
+    playFeedbackSound(result);
+  }, [playFeedbackSound]);
+
+  useEffect(() => {
+    if (phase !== 'questions' || answered) return;
+    if (timeLeft <= 0) {
+      const feedbackTimer = window.setTimeout(() => settleAnswer('timeout'), 0);
+      return () => window.clearTimeout(feedbackTimer);
+    }
+    const timer = window.setTimeout(() => {
+      setTimeLeft((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [answered, phase, settleAnswer, timeLeft]);
 
   const choose = (choice: Choice) => {
     if (answered) return;
     setSelectedChoice(choice);
-    if (choice.correct) setScore((current) => current + 1);
+    settleAnswer(choice.correct ? 'correct' : 'incorrect');
   };
 
   const advance = () => {
@@ -618,6 +780,9 @@ export function AppraisalTrivia({
     }
     setQuestionIndex((current) => current + 1);
     setSelectedChoice(null);
+    setAnswerResult(null);
+    setFeedbackText('');
+    setTimeLeft(QUESTION_SECONDS);
   };
 
   const reset = () => {
@@ -625,6 +790,12 @@ export function AppraisalTrivia({
     setQuestionIndex(0);
     setSelectedChoice(null);
     setScore(0);
+    setAnswerResult(null);
+    setFeedbackText('');
+    setTimeLeft(QUESTION_SECONDS);
+    setStreak(0);
+    setBestStreak(0);
+    usedFeedbackMessagesRef.current.clear();
   };
 
   if (phase === 'intro') {
@@ -674,7 +845,11 @@ export function AppraisalTrivia({
         <Button
           size="lg"
           className="mt-6 h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
-          onClick={() => setPhase('questions')}
+          onClick={() => {
+            prepareAudio();
+            setTimeLeft(QUESTION_SECONDS);
+            setPhase('questions');
+          }}
         >
           Comenzar reto <ArrowRight className="size-5" />
         </Button>
@@ -689,12 +864,19 @@ export function AppraisalTrivia({
     return (
       <div className="relative flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8 text-center">
         <div className="pointer-events-none absolute inset-x-8 top-8 h-52 rounded-full bg-[#57cdb2]/15 blur-3xl" />
-        <div className="relative mx-auto grid size-20 place-items-center rounded-full border border-[#9fd7ca] bg-[#e8f7f3] shadow-[0_14px_38px_rgba(25,125,103,.16)]">
-          {score === 4 ? (
-            <Crown className="size-9 text-[#c39300]" />
-          ) : (
-            <Trophy className="size-9 text-[#168a77]" />
-          )}
+        <div className="result-badge relative mx-auto w-full max-w-sm shrink-0 overflow-hidden rounded-[2rem] border border-[#94d8c6] bg-[linear-gradient(145deg,#f7fffc_0%,#e1f7f0_55%,#fff5ce_100%)] p-5 shadow-[0_22px_55px_rgba(25,125,103,.2)]">
+          <div className="result-badge__ring" aria-hidden="true" />
+          <div className="relative flex items-center justify-center gap-4">
+            <AppraiserMascot mood={score >= 3 ? 'correct' : score <= 1 ? 'incorrect' : 'neutral'} />
+            <div className="text-left">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-[#dfbd53]/50 bg-white/75 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.15em] text-[#8a6800]">
+                {score === 4 ? <Crown className="size-3.5" /> : <Trophy className="size-3.5" />}
+                Insignia lograda
+              </div>
+              <p className="mt-2 text-4xl font-bold tracking-[-0.06em] text-[#123e36]">{score}/4</p>
+              <p className="text-xs font-semibold text-[#55746c]">Mejor racha · {bestStreak}</p>
+            </div>
+          </div>
         </div>
         <p className="relative mt-5 text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
           Resultado final
@@ -705,7 +887,7 @@ export function AppraisalTrivia({
         <p className="relative mt-3 text-lg text-[#506d66]">
           Acertaste <strong className="text-[#183c35]">{score} de 4</strong> preguntas.
         </p>
-        <div className="relative my-6 rounded-2xl border border-[#c9d9d5] bg-white p-5 shadow-sm">
+        <div className="relative my-6 shrink-0 rounded-2xl border border-[#c9d9d5] bg-white p-5 shadow-sm">
           <p className="text-sm leading-relaxed text-[#506d66]">
             Cada respuesta fue construida con los datos reales disponibles para este avalúo.
           </p>
@@ -731,20 +913,37 @@ export function AppraisalTrivia({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-7">
+    <div className={`relative flex h-full flex-col overflow-y-auto px-6 pb-7 pt-7 ${answerResult && answerResult !== 'correct' ? 'quiz-shake' : ''}`}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
           Ronda progresiva
         </p>
-        <span className="rounded-full border border-[#b9d9d1] bg-[#eef8f5] px-3 py-1.5 text-xs font-semibold text-[#45655e]">
-          {questionIndex + 1} de 4
-        </span>
+        <div className="flex items-center gap-2">
+          <span key={`${questionIndex}-${streak}`} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-bold ${streak > 0 ? 'streak-pop border-[#f1c45b] bg-[#fff7d8] text-[#8a6500]' : 'border-[#d6e2df] bg-[#f5f8f7] text-[#78908a]'}`}>
+            <Flame className="size-3.5" /> {streak}
+          </span>
+          <span className="rounded-full border border-[#b9d9d1] bg-[#eef8f5] px-3 py-1.5 text-xs font-semibold text-[#45655e]">
+            {questionIndex + 1} de 4
+          </span>
+        </div>
       </div>
       <div className="mb-5 h-2 overflow-hidden rounded-full bg-[#dceae6]" aria-hidden="true">
         <div
           className="h-full rounded-full bg-[#1b9b84] transition-[width] duration-300"
           style={{ width: `${((questionIndex + 1) / 4) * 100}%` }}
         />
+      </div>
+      <div className={`mb-5 flex items-center gap-3 rounded-xl border px-3 py-2.5 ${timeLeft <= 5 && !answered ? 'border-[#efb37f] bg-[#fff3e8]' : 'border-[#c9ded8] bg-white/85'}`}>
+        <Clock3 className={`size-4 shrink-0 ${timeLeft <= 5 && !answered ? 'timer-urgent text-[#cf6d34]' : 'text-[#168a77]'}`} />
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#dce9e5]">
+          <div
+            className={`h-full rounded-full transition-[width,background-color] duration-300 ${timeLeft <= 5 ? 'bg-[#e8894f]' : 'bg-[#23a98c]'}`}
+            style={{ width: `${(timeLeft / QUESTION_SECONDS) * 100}%` }}
+          />
+        </div>
+        <span role="timer" aria-label={`${timeLeft} segundos restantes`} className="min-w-8 text-right text-sm font-bold tabular-nums text-[#294c44]">
+          {timeLeft}s
+        </span>
       </div>
       {question.visual === 'comparison' && question.comparison ? (
         <div className="mb-6 grid grid-cols-2 gap-3">
@@ -781,29 +980,37 @@ export function AppraisalTrivia({
       </div>
       {answered && (
         <div
-          className={`mt-5 rounded-2xl border p-4 ${
-            selectedChoice.correct
-              ? 'border-[#54b99a]/35 bg-[#e7f8f1]'
-              : 'border-[#e67a96]/35 bg-[#fff1f4]'
+          className={`quiz-feedback relative mt-5 shrink-0 overflow-hidden rounded-2xl border p-4 ${
+            answerResult === 'correct'
+              ? 'quiz-feedback--correct border-[#54b99a]/45 bg-[#e7f8f1]'
+              : 'quiz-feedback--incorrect border-[#efaa74]/50 bg-[#fff2e7]'
           }`}
           aria-live="polite"
         >
-          <p className="font-semibold text-[#183c35]">
-            {selectedChoice.correct
-              ? '¡Correcto!'
-              : `Respuesta correcta: ${question.choices.find((choice) => choice.correct)?.label}`}
-          </p>
-          <p className="mt-2 text-sm text-[#405d56]">Dato real: {question.fact}</p>
-          <p className="mt-2 text-sm text-[#147865]">{question.lesson}</p>
-          {question.source && (
-            <p className="mt-3 text-xs text-[#7d7353]">Referencia: {question.source}</p>
-          )}
+          {answerResult === 'correct' && <CelebrationParticles />}
+          <div className="relative flex items-start gap-3">
+            <AppraiserMascot mood={answerResult === 'correct' ? 'correct' : 'incorrect'} />
+            <div className="min-w-0 flex-1 pt-1">
+              <p className="text-lg font-bold leading-tight text-[#183c35]">{feedbackText}</p>
+              {answerResult !== 'correct' && (
+                <p className="mt-2 rounded-lg bg-white/75 px-3 py-2 text-sm font-semibold text-[#75431f]">
+                  {answerResult === 'timeout' ? 'Se acabó el tiempo · ' : 'La correcta era · '}
+                  {question.choices.find((choice) => choice.correct)?.label}
+                </p>
+              )}
+              <p className="mt-2 text-sm text-[#405d56]">Dato real: {question.fact}</p>
+              <p className="mt-2 text-sm text-[#147865]">{question.lesson}</p>
+              {question.source && (
+                <p className="mt-3 text-xs text-[#7d7353]">Referencia: {question.source}</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
       {answered && (
         <Button
           size="lg"
-          className="mt-5 h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
+          className="mt-5 h-14 shrink-0 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
           onClick={advance}
         >
           {questionIndex === 3 ? 'Ver resultado' : 'Siguiente pregunta'}

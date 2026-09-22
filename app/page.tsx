@@ -8,16 +8,24 @@ import {
   BadgeDollarSign,
   BrainCircuit,
   Building2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   ClipboardList,
   Compass,
   LocateFixed,
+  Landmark as LandmarkIcon,
+  Leaf,
   MapPin,
   Pause,
+  Palette,
   Play,
+  Route,
   Sparkles,
   Trophy,
+  UsersRound,
+  Waves,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,7 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { appraisals, type Appraisal } from './data';
 import { locationPin } from './map-pin';
-import { neonSphere } from './neon-sphere';
+import { landmarkPin } from './landmark-pin';
 import { FacadePhoto } from './facade-photo';
 import { AppraisalTrivia } from './trivia';
 import { IntroScreen } from './intro-screen';
@@ -57,6 +65,15 @@ const valueRanges = [
   { label: '$10.000 M a menos de $25.000 M', max: 25_000_000_000, color: '#ffb52e' },
   { label: '$25.000 M o más', max: Infinity, color: '#ff398b' },
 ];
+
+const pointOfInterestLegend = [
+  { key: 'art', label: 'Arte y cultura', color: '#7c5ce7', Icon: Palette },
+  { key: 'heritage', label: 'Patrimonio', color: '#b97824', Icon: LandmarkIcon },
+  { key: 'river', label: 'Río y espacio público', color: '#168fc4', Icon: Waves },
+  { key: 'nature', label: 'Naturaleza', color: '#22a878', Icon: Leaf },
+  { key: 'community', label: 'Comunidad', color: '#e34f7a', Icon: UsersRound },
+  { key: 'mobility', label: 'Movilidad', color: '#ef8c2f', Icon: Route },
+] as const;
 
 const landmarkGeojson: FeatureCollection<Point> = {
   type: 'FeatureCollection',
@@ -128,6 +145,7 @@ export default function Home() {
   const [tourLandmarkId, setTourLandmarkId] = useState<string | null>(null);
   const [tourAppraisalId, setTourAppraisalId] = useState<string | null>(null);
   const [landmarkDirectoryOpen, setLandmarkDirectoryOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const groups = useMemo<AppraisalGroup[]>(() => {
     const grouped = new Map<string, AppraisalGroup>();
@@ -296,7 +314,7 @@ export default function Home() {
       for (const landmark of landmarks) {
         map.addImage(
           `landmark-${landmark.id}`,
-          neonSphere(landmark.color),
+          landmarkPin(landmark.color, landmark.icon),
           { pixelRatio: 2 },
         );
       }
@@ -577,19 +595,43 @@ export default function Home() {
         </Button>
       </div>
 
-      <div className="pointer-events-none absolute bottom-20 right-4 z-10 hidden rounded-xl border border-white/80 bg-white/92 px-3 py-2 text-xs text-[#183c35] shadow-[0_12px_32px_rgba(24,52,47,.16)] backdrop-blur-md sm:block md:bottom-7 md:right-20">
-        <div className="mb-1.5 flex items-center gap-1.5 font-medium">
-          <Sparkles className="size-3.5 text-[#168a77]" /> Valor comercial
-        </div>
-        <div className="flex flex-wrap gap-3 text-[#526762]">
-          {valueRanges.map((range) => (
-            <span key={range.label} className="flex items-center gap-1.5">
-              <MapPin className="size-3.5" style={{ color: range.color }} />
-              {range.label}
-            </span>
-          ))}
-        </div>
-      </div>
+      <aside className="absolute bottom-24 right-4 z-10 w-[min(330px,calc(100vw-2rem))] rounded-2xl border border-white/80 bg-white/94 text-xs text-[#183c35] shadow-[0_14px_38px_rgba(24,52,47,.18)] backdrop-blur-md md:bottom-7 md:right-20">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 px-3 py-2.5 font-semibold uppercase tracking-[0.12em] text-[#168a77]"
+          onClick={() => setLegendOpen((current) => !current)}
+          aria-expanded={legendOpen}
+        >
+          <span className="flex items-center gap-1.5"><Sparkles className="size-3.5" /> Leyenda del mapa</span>
+          {legendOpen ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+        </button>
+        {legendOpen && (
+          <div className="max-h-[58vh] overflow-y-auto border-t border-[#dce9e5] px-3 pb-3 pt-2">
+            <p className="font-semibold text-[#294c44]">Avalúos · color por valor</p>
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1.5 text-[#526762]">
+              {valueRanges.map((range) => (
+                <span key={range.label} className="flex items-center gap-1.5">
+                  <MapPin className="size-4 fill-current" style={{ color: range.color }} />
+                  {range.label}
+                </span>
+              ))}
+            </div>
+            <div className="my-2.5 h-px bg-[#dce9e5]" />
+            <p className="font-semibold text-[#294c44]">Puntos de interés · símbolo por tipo</p>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-[#526762]">
+              {pointOfInterestLegend.map(({ key, label, color, Icon }) => (
+                <span key={key} className="flex items-center gap-2">
+                  <span className="relative grid size-6 shrink-0 place-items-center">
+                    <MapPin className="absolute size-6 fill-current" style={{ color }} />
+                    <Icon className="relative -translate-y-0.5 size-2.5 text-white" strokeWidth={2.8} />
+                  </span>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </aside>
 
       {touring && tourLandmark && (
         <aside
