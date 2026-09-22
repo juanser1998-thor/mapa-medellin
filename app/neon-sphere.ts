@@ -1,9 +1,10 @@
-// One reusable sprite per value band: translucent bubble with a luminous rim.
+// Esfera translúcida reutilizable para distinguir los hitos territoriales.
 export function neonSphere(color: string): ImageData {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('No se pudo dibujar el marcador del avalúo.');
+  if (!ctx) throw new Error('No se pudo dibujar el hito territorial.');
+
   const halo = ctx.createRadialGradient(64, 64, 29, 64, 64, 61);
   halo.addColorStop(0, `${color}78`);
   halo.addColorStop(0.58, `${color}28`);
@@ -54,11 +55,6 @@ export function neonSphere(color: string): ImageData {
   ctx.beginPath();
   ctx.ellipse(49, 44, 6.5, 3.2, -0.65, 0, Math.PI * 2);
   ctx.fillStyle = '#ffffffd9';
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(43, 54, 2.3, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffffa0';
   ctx.fill();
 
   return ctx.getImageData(0, 0, 128, 128);

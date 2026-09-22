@@ -3,9 +3,12 @@
 import { useMemo, useState } from 'react';
 import {
   ArrowRight,
+  Building2,
   Check,
   Crown,
   Eye,
+  Layers3,
+  MapPin,
   RotateCcw,
   Scale,
   Sparkles,
@@ -32,7 +35,7 @@ type TriviaQuestion = {
   fact: string;
   lesson: string;
   source?: string;
-  visual?: 'property' | 'comparison' | 'norm';
+  visual?: 'property' | 'comparison' | 'norm' | 'gallery';
   comparison?: Appraisal;
 };
 
@@ -110,6 +113,9 @@ function primaryArea(record: Appraisal): AreaDatum {
 function metricValue(record: Appraisal, metric: Metric) {
   if (metric === 'area') return primaryArea(record).value;
   if (metric === 'value') return record.valor;
+  if (record.valorMetroCuadrado && record.valorMetroCuadrado > 0) {
+    return record.valorMetroCuadrado;
+  }
   const area = primaryArea(record).value;
   return area > 0 ? record.valor / area : 0;
 }
@@ -163,16 +169,51 @@ function metricRangeChoices(record: Appraisal, metric: Metric) {
   const value = metricValue(record, metric);
   const step = rangeStep(metric, value);
   const actualStart = Math.floor(value / step) * step;
-  const rangesBelow = Math.min(2, Math.floor(actualStart / step));
-  const firstStart = actualStart - rangesBelow * step;
-  const choices = Array.from({ length: 4 }, (_, index) => {
-    const start = firstStart + index * step;
+  const preferBelow =
+    actualStart >= step &&
+    hashText(`${record.id}:${metric}:similar-direction`) % 2 === 0;
+  const similarStart = preferBelow ? actualStart - step : actualStart + step;
+  const doubtBelow =
+    value >= step * 6 &&
+    hashText(`${record.id}:${metric}:doubt-direction`) % 2 === 0;
+  let doubtStart = doubtBelow
+    ? Math.floor((value * 0.45) / step) * step
+    : Math.ceil((value * 2) / step) * step;
+
+  while (
+    doubtStart === actualStart ||
+    doubtStart === similarStart ||
+    Math.abs(doubtStart - actualStart) <= step
+  ) {
+    doubtStart += step;
+  }
+
+  let absurdStart = Math.ceil(
+    Math.max(value * 12, actualStart + step * 10) / step,
+  ) * step;
+
+  while (
+    absurdStart === actualStart ||
+    absurdStart === similarStart ||
+    absurdStart === doubtStart
+  ) {
+    absurdStart += step;
+  }
+
+  const candidates = [
+    { id: 'correct', start: actualStart, correct: true },
+    { id: 'similar', start: similarStart, correct: false },
+    { id: 'discardable-doubt', start: doubtStart, correct: false },
+    { id: 'absurd', start: absurdStart, correct: false },
+  ];
+  const choices = candidates.map((candidate) => {
+    const start = candidate.start;
     const end = start + step;
     return {
-      id: `range-${metric}-${index}`,
+      id: `range-${metric}-${candidate.id}`,
       label: `De ${metricLabel(metric, start)} a menos de ${metricLabel(metric, end)}`,
       numericValue: start + step / 2,
-      correct: value >= start && value < end,
+      correct: candidate.correct,
     };
   });
   return deterministicShuffle(choices, `${record.id}:${metric}-range`);
@@ -439,7 +480,9 @@ function buildQuestionPool(record: Appraisal): TriviaQuestion[] {
       eyebrow: 'Piensa como avaluador',
       prompt: '¿En qué rango está el valor por m²?',
       choices: metricRangeChoices(record, 'squareMeter'),
-      fact: `${formatMoney(record.valor)} ÷ ${formatArea(area.value)} = ${formatSquareMeter(squareMeter)}.`,
+      fact: record.valorMetroCuadrado
+        ? `Valor unitario registrado: ${formatSquareMeter(squareMeter)}.`
+        : `${formatMoney(record.valor)} ÷ ${formatArea(area.value)} = ${formatSquareMeter(squareMeter)}.`,
       lesson: 'El valor por m² permite comparar inmuebles de tamaños distintos.',
     },
     {
@@ -459,6 +502,21 @@ function buildQuestionPool(record: Appraisal): TriviaQuestion[] {
       visual: 'norm',
     },
   ];
+  if (record.categoria === 'especial' && record.caracteristicas?.length) {
+    const correct = record.caracteristicas[0];
+    questions.unshift({
+      eyebrow: 'Identifica el inmueble',
+      prompt: 'Después de observar su galería, ¿qué característica corresponde a este avalúo?',
+      visual: 'gallery',
+      choices: deterministicShuffle<Choice>([
+        { id: 'feature-correct', label: correct, correct: true },
+        { id: 'feature-a', label: 'Unidad residencial de área reducida', correct: false },
+        { id: 'feature-b', label: 'Predio sin relación con actividades urbanas', correct: false },
+      ], `${record.id}:feature`),
+      fact: record.descripcion ?? `Característica registrada: ${correct}.`,
+      lesson: 'La tipología, la escala y los espacios visibles ayudan a seleccionar comparables adecuados.',
+    });
+  }
   if (comparison) questions.push(comparison);
   else {
     questions.push({
@@ -531,6 +589,13 @@ export function AppraisalTrivia({
 }) {
   const questions = useMemo(() => {
     const pool = buildQuestionPool(record);
+    if (record.categoria === 'especial') {
+      const identification = pool.find((question) => question.visual === 'gallery');
+      const rest = pool.filter((question) => question !== identification);
+      return identification
+        ? [identification, ...deterministicShuffle(rest, `${record.id}:four-question-round`).slice(0, 3)]
+        : deterministicShuffle(pool, `${record.id}:four-question-round`).slice(0, 4);
+    }
     return deterministicShuffle(pool, `${record.id}:four-question-round`).slice(0, 4);
   }, [record]);
   const [phase, setPhase] = useState<'intro' | 'questions' | 'result'>('intro');
@@ -574,8 +639,29 @@ export function AppraisalTrivia({
         <p className="mt-3 text-base leading-relaxed text-[#506d66]">
           Supera cuatro preguntas elegidas para este inmueble y descubre qué tan buen ojo tienes.
         </p>
+        <section className="mt-5 rounded-2xl border border-[#b8ded4] bg-[#edf8f5] p-4 text-left">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">Información para comenzar</p>
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
+              <MapPin className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
+              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Dirección</span><strong className="mt-1 block font-medium text-[#183c35]">{record.direccion || 'Ubicación referencial disponible en la ficha'}</strong></div>
+            </div>
+            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
+              <MapPin className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
+              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Sector</span><strong className="mt-1 block font-medium text-[#183c35]">{record.barrio}{record.municipio ? ` · ${record.municipio}` : ''}</strong></div>
+            </div>
+            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
+              <Building2 className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
+              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Tipo de predio</span><strong className="mt-1 block font-medium text-[#183c35]">{titleCase(record.tipo)}</strong></div>
+            </div>
+            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
+              <Layers3 className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
+              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Régimen</span><strong className="mt-1 block font-medium text-[#183c35]">{record.regimen === 'PH' ? 'Propiedad horizontal (PH)' : 'No propiedad horizontal (NPH)'}</strong></div>
+            </div>
+          </div>
+        </section>
         <div className="my-6">
-          <FacadePhoto src={record.foto} barrio={record.barrio} className="mb-0" eager />
+          <FacadePhoto src={record.foto} images={record.imagenes} barrio={record.barrio} className="mb-0" eager />
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm text-[#506d66]">
           <div className="rounded-xl border border-[#c9d9d5] bg-white p-3 shadow-sm">
@@ -662,11 +748,11 @@ export function AppraisalTrivia({
       </div>
       {question.visual === 'comparison' && question.comparison ? (
         <div className="mb-6 grid grid-cols-2 gap-3">
-          <FacadePhoto src={record.foto} barrio={record.barrio} label="Inmueble A" className="mb-0" eager />
-          <FacadePhoto src={question.comparison.foto} barrio={question.comparison.barrio} label="Inmueble B" className="mb-0" eager />
+          <FacadePhoto src={record.foto} images={record.imagenes} barrio={record.barrio} label="Inmueble A" className="mb-0" eager />
+          <FacadePhoto src={question.comparison.foto} images={question.comparison.imagenes} barrio={question.comparison.barrio} label="Inmueble B" className="mb-0" eager />
         </div>
       ) : (
-        <FacadePhoto src={record.foto} barrio={record.barrio} className="mb-6" eager />
+        <FacadePhoto src={record.foto} images={record.imagenes} barrio={record.barrio} className="mb-6" eager />
       )}
       {question.visual === 'norm' && (
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#ead28a] bg-[#fff8df] p-3.5">

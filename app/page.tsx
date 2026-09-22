@@ -6,27 +6,36 @@ import type { Map as MapLibreMap, MapLayerMouseEvent } from 'maplibre-gl';
 import type { Feature, FeatureCollection, Point } from 'geojson';
 import {
   BadgeDollarSign,
+  BrainCircuit,
   Building2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
+  Compass,
   LocateFixed,
+  MapPin,
   Pause,
   Play,
   Sparkles,
+  Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { appraisals, type Appraisal } from './data';
+import { locationPin } from './map-pin';
 import { neonSphere } from './neon-sphere';
 import { FacadePhoto } from './facade-photo';
 import { AppraisalTrivia } from './trivia';
 import { IntroScreen } from './intro-screen';
+import { LandmarkChallenge } from './landmark-challenge';
+import { LandmarkDirectory } from './landmark-directory';
+import { landmarks, type Landmark } from './landmarks';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type AppraisalGroup = {
@@ -36,22 +45,6 @@ type AppraisalGroup = {
   records: Appraisal[];
 };
 
-type WebMcpDocument = Document & {
-  modelContext?: {
-    registerTool: (
-      tool: {
-        name: string;
-        title: string;
-        description: string;
-        inputSchema: object;
-        annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
-        execute: (input: unknown) => unknown;
-      },
-      options?: { signal?: AbortSignal },
-    ) => void | Promise<void>;
-  };
-};
-
 const cityView = {
   center: [-75.577, 6.245] as [number, number],
   zoom: 12.4,
@@ -59,11 +52,27 @@ const cityView = {
   bearing: -24,
 };
 const valueRanges = [
-  { label: 'Menos de $250 M', max: 250_000_000, color: '#00edb0' },
-  { label: '$250 M a menos de $400 M', max: 400_000_000, color: '#16bcff' },
-  { label: '$400 M a menos de $800 M', max: 800_000_000, color: '#ffb52e' },
-  { label: '$800 M o más', max: Infinity, color: '#ff398b' },
+  { label: 'Menos de $4.000 M', max: 4_000_000_000, color: '#00edb0' },
+  { label: '$4.000 M a menos de $10.000 M', max: 10_000_000_000, color: '#16bcff' },
+  { label: '$10.000 M a menos de $25.000 M', max: 25_000_000_000, color: '#ffb52e' },
+  { label: '$25.000 M o más', max: Infinity, color: '#ff398b' },
 ];
+
+const landmarkGeojson: FeatureCollection<Point> = {
+  type: 'FeatureCollection',
+  features: landmarks.map((landmark) => ({
+    type: 'Feature',
+    properties: {
+      id: landmark.id,
+      name: landmark.shortName,
+      icon: `landmark-${landmark.id}`,
+    },
+    geometry: {
+      type: 'Point',
+      coordinates: landmark.coordinates,
+    },
+  })),
+};
 
 function colorForValue(value: number) {
   return valueRanges.find((range) => value < range.max)?.color ?? '#ff398b';
@@ -114,7 +123,11 @@ export default function Home() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [recordIndex, setRecordIndex] = useState(0);
   const [touring, setTouring] = useState(false);
-  const [viewMode, setViewMode] = useState<'quiz' | 'details'>('quiz');
+  const [viewMode, setViewMode] = useState<'menu' | 'quiz' | 'details'>('menu');
+  const [activeLandmarkId, setActiveLandmarkId] = useState<string | null>(null);
+  const [tourLandmarkId, setTourLandmarkId] = useState<string | null>(null);
+  const [tourAppraisalId, setTourAppraisalId] = useState<string | null>(null);
+  const [landmarkDirectoryOpen, setLandmarkDirectoryOpen] = useState(false);
 
   const groups = useMemo<AppraisalGroup[]>(() => {
     const grouped = new Map<string, AppraisalGroup>();
@@ -143,7 +156,7 @@ export default function Home() {
             id: record.id,
             key: group.key,
             color: colorForValue(record.valor),
-            icon: `sphere-${colorForValue(record.valor).slice(1)}`,
+            icon: `pin-${colorForValue(record.valor).slice(1)}`,
           },
           geometry: {
             type: 'Point',
@@ -163,6 +176,12 @@ export default function Home() {
   const selectedGroup =
     groups.find((group) => group.key === selectedKey) ?? null;
   const selected = selectedGroup?.records[recordIndex] ?? null;
+  const activeLandmark =
+    landmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null;
+  const tourLandmark =
+    landmarks.find((landmark) => landmark.id === tourLandmarkId) ?? null;
+  const tourAppraisal =
+    appraisals.find((appraisal) => appraisal.id === tourAppraisalId) ?? null;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -255,22 +274,10 @@ export default function Home() {
         paint: { 'text-color': '#ffffff' },
       });
       for (const range of valueRanges) {
-        map.addImage(`sphere-${range.color.slice(1)}`, neonSphere(range.color), { pixelRatio: 2 });
+        map.addImage(`pin-${range.color.slice(1)}`, locationPin(range.color), {
+          pixelRatio: 2,
+        });
       }
-      map.addLayer({
-        id: 'avaluo-glow',
-        type: 'circle',
-        source: 'avaluos-medellin',
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 16, 16, 25],
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 0.15,
-          'circle-blur': 0.9,
-          'circle-pitch-alignment': 'viewport',
-          'circle-pitch-scale': 'viewport',
-        },
-      });
       map.addLayer({
         id: 'avaluo-points',
         type: 'symbol',
@@ -278,11 +285,46 @@ export default function Home() {
         filter: ['!', ['has', 'point_count']],
         layout: {
           'icon-image': ['get', 'icon'],
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.65, 16, 1, 19, 1.2],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.46, 16, 0.74, 19, 0.92],
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
           'icon-pitch-alignment': 'viewport',
           'icon-rotation-alignment': 'viewport',
+        },
+      });
+
+      for (const landmark of landmarks) {
+        map.addImage(
+          `landmark-${landmark.id}`,
+          neonSphere(landmark.color),
+          { pixelRatio: 2 },
+        );
+      }
+      map.addSource('medellin-landmarks', {
+        type: 'geojson',
+        data: landmarkGeojson,
+      });
+      map.addLayer({
+        id: 'landmark-points',
+        type: 'symbol',
+        source: 'medellin-landmarks',
+        layout: {
+          'icon-image': ['get', 'icon'],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.48, 15, 0.72, 18, 0.9],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'text-field': ['get', 'name'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 12,
+          'text-offset': [0, 3.1],
+          'text-anchor': 'top',
+          'text-optional': true,
+        },
+        paint: {
+          'text-color': '#183c35',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+          'text-halo-blur': 0.5,
         },
       });
 
@@ -299,8 +341,9 @@ export default function Home() {
             group.records.findIndex((item) => item.id === id),
           ),
         );
-        setViewMode('quiz');
+        setViewMode('menu');
         setSelectedKey(key);
+        setActiveLandmarkId(null);
         setTouring(false);
         map.flyTo({
           center: [group.lng, group.lat],
@@ -311,6 +354,22 @@ export default function Home() {
         });
       };
       map.on('click', 'avaluo-points', selectFeature);
+      map.on('click', 'landmark-points', (event) => {
+        const id = event.features?.[0]?.properties?.id as string | undefined;
+        const landmark = landmarks.find((item) => item.id === id);
+        if (!landmark) return;
+        setTouring(false);
+        setTourLandmarkId(null);
+        setSelectedKey(null);
+        setActiveLandmarkId(landmark.id);
+        map.flyTo({
+          center: landmark.coordinates,
+          zoom: landmark.zoom,
+          pitch: landmark.pitch,
+          bearing: landmark.bearing,
+          duration: 1400,
+        });
+      });
       map.on('click', 'avaluo-clusters', async (event) => {
         const feature = event.features?.[0];
         if (!feature || feature.geometry.type !== 'Point') return;
@@ -325,7 +384,7 @@ export default function Home() {
           if (mapRef.current === map) map.flyTo({ center, zoom: Math.min(map.getZoom() + 2, 19), duration: 900 });
         }
       });
-      for (const layer of ['avaluo-points', 'avaluo-clusters']) {
+      for (const layer of ['avaluo-points', 'avaluo-clusters', 'landmark-points']) {
         map.on('mouseenter', layer, () => {
           map.getCanvas().style.cursor = 'pointer';
         });
@@ -343,93 +402,93 @@ export default function Home() {
   }, [geojson, groups]);
 
   useEffect(() => {
-    if (!touring || !mapRef.current) return;
-    const preferredStops = groups.filter(
-      (group) =>
-        group.records.length > 1 ||
-        ['El Poblado', 'Caicedo', 'Robledo'].includes(group.records[0].barrio),
-    );
-    const stops = preferredStops.length ? preferredStops : groups;
-    if (!stops.length) return;
-    let index = 0;
+    if (!touring || !mapRef.current) {
+      setTourLandmarkId(null);
+      setTourAppraisalId(null);
+      return;
+    }
+    let stopIndex = 0;
+    let appraisalIndex = 0;
+    let landmarkIndex = 0;
+    const timers: number[] = [];
     const visit = () => {
-      const stop = stops[index % stops.length];
-      mapRef.current?.flyTo({
-        center: [stop.lng, stop.lat],
+      const isAppraisalStop = stopIndex % 2 === 0;
+
+      if (isAppraisalStop) {
+        const stop = appraisals[appraisalIndex % appraisals.length];
+        setTourLandmarkId(null);
+        setTourAppraisalId(stop.id);
+        mapRef.current?.flyTo({
+          center: [stop.lng, stop.lat],
           zoom: 17.2,
-        pitch: 64,
-        bearing: -28 + index * 22,
-        duration: 1800,
-      });
-      index += 1;
+          pitch: 66,
+          bearing: appraisalIndex % 2 === 0 ? -18 : 24,
+          duration: 2300,
+        });
+        appraisalIndex = (appraisalIndex + 1) % appraisals.length;
+      } else {
+        const stop = landmarks[landmarkIndex % landmarks.length];
+        setTourAppraisalId(null);
+        setTourLandmarkId(stop.id);
+        mapRef.current?.flyTo({
+          center: stop.coordinates,
+          zoom: stop.zoom,
+          pitch: stop.pitch,
+          bearing: stop.bearing,
+          duration: 2300,
+        });
+        landmarkIndex = (landmarkIndex + 1) % landmarks.length;
+      }
+
+      timers.push(
+        window.setTimeout(() => {
+          setTourLandmarkId(null);
+          setTourAppraisalId(null);
+        }, 6100),
+        window.setTimeout(() => {
+          stopIndex += 1;
+          visit();
+        }, 7300),
+      );
     };
     visit();
-    const timer = window.setInterval(visit, 4800);
-    return () => window.clearInterval(timer);
-  }, [touring, groups]);
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [touring]);
 
-  useEffect(() => {
-    const context = (document as WebMcpDocument).modelContext;
-    if (!context?.registerTool) return;
-    const lifecycle = new AbortController();
-    void Promise.resolve(
-      context.registerTool(
-        {
-          name: 'open_appraisal',
-          title: 'Abrir avalúo',
-          description:
-            'Selecciona un avalúo del mapa por su identificador y abre su ficha visible.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              id: { type: 'string', description: 'Identificador del avalúo' },
-            },
-            required: ['id'],
-            additionalProperties: false,
-          },
-          annotations: { readOnlyHint: false, untrustedContentHint: false },
-          execute: (input) => {
-            const id =
-              typeof input === 'object' && input !== null && 'id' in input
-                ? String((input as { id: unknown }).id)
-                : '';
-            const appraisal = appraisals.find((item) => item.id === id);
-            if (!appraisal)
-              throw new Error('No existe un avalúo con ese identificador.');
-            const key = `${appraisal.lng.toFixed(6)},${appraisal.lat.toFixed(6)}`;
-            const group = groups.find((item) => item.key === key);
-            if (!group)
-              throw new Error('El avalúo no tiene una ubicación disponible.');
-            setTouring(false);
-            setViewMode('quiz');
-            setSelectedKey(key);
-            setRecordIndex(group.records.findIndex((item) => item.id === id));
-            mapRef.current?.flyTo({
-              center: [group.lng, group.lat],
-              zoom: 17.2,
-              pitch: 66,
-              bearing: -18,
-              duration: 1100,
-            });
-            return {
-              id: appraisal.id,
-              barrio: appraisal.barrio,
-              tipo: appraisal.tipo,
-              valor: appraisal.valor,
-            };
-          },
-        },
-        { signal: lifecycle.signal },
-      ),
-    ).catch(() => undefined);
-    return () => lifecycle.abort();
-  }, [groups]);
+  const toggleTour = () => {
+    setSelectedKey(null);
+    setActiveLandmarkId(null);
+    setLandmarkDirectoryOpen(false);
+    setViewMode('menu');
+    setTouring((value) => !value);
+  };
 
   const resetView = () => {
     setTouring(false);
+    setTourLandmarkId(null);
+    setTourAppraisalId(null);
     setSelectedKey(null);
-    setViewMode('quiz');
+    setActiveLandmarkId(null);
+    setLandmarkDirectoryOpen(false);
+    setViewMode('menu');
     mapRef.current?.flyTo({ ...cityView, duration: 1200 });
+  };
+
+  const exploreLandmark = (landmark: Landmark) => {
+    setLandmarkDirectoryOpen(false);
+    setTouring(false);
+    setTourLandmarkId(null);
+    setTourAppraisalId(null);
+    setSelectedKey(null);
+    setViewMode('menu');
+    setActiveLandmarkId(landmark.id);
+    mapRef.current?.flyTo({
+      center: landmark.coordinates,
+      zoom: landmark.zoom,
+      pitch: landmark.pitch,
+      bearing: landmark.bearing,
+      duration: 1400,
+    });
   };
 
   return (
@@ -462,7 +521,7 @@ export default function Home() {
             Avalúos que cuentan la ciudad
           </h1>
           <p className="mt-1 text-sm text-[#526762] md:text-base">
-            Toca una esfera y demuestra cuánto sabes de avalúos.
+            Toca un pin para elegir entre el reto o la ficha del avalúo.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <span>
@@ -478,6 +537,9 @@ export default function Home() {
             <span className="flex items-center gap-1.5 text-[#526762]">
               <BadgeDollarSign className="size-4" /> color = valor
             </span>
+            <span className="flex items-center gap-1.5 text-[#526762]">
+              <Compass className="size-4" /> {landmarks.length} hitos
+            </span>
           </div>
         </div>
       </header>
@@ -486,7 +548,7 @@ export default function Home() {
         <Button
           size="lg"
           className="h-12 rounded-xl border border-[#0b5748]/15 bg-[#123e36] px-4 text-white shadow-[0_10px_28px_rgba(24,52,47,.2)] hover:bg-[#0b5748]"
-          onClick={() => setTouring((value) => !value)}
+          onClick={toggleTour}
         >
           {touring ? <Pause className="size-5" /> : <Play className="size-5" />}
           {touring ? 'Pausar recorrido' : 'Recorrido 3D'}
@@ -499,6 +561,20 @@ export default function Home() {
         >
           <LocateFixed className="size-5" /> Vista general
         </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 rounded-xl border-white/90 bg-white/92 px-4 text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723]"
+          onClick={() => {
+            setTouring(false);
+            setTourLandmarkId(null);
+            setSelectedKey(null);
+            setActiveLandmarkId(null);
+            setLandmarkDirectoryOpen(true);
+          }}
+        >
+          <Compass className="size-5" /> Explorar {landmarks.length} hitos
+        </Button>
       </div>
 
       <div className="pointer-events-none absolute bottom-20 right-4 z-10 hidden rounded-xl border border-white/80 bg-white/92 px-3 py-2 text-xs text-[#183c35] shadow-[0_12px_32px_rgba(24,52,47,.16)] backdrop-blur-md sm:block md:bottom-7 md:right-20">
@@ -508,15 +584,128 @@ export default function Home() {
         <div className="flex flex-wrap gap-3 text-[#526762]">
           {valueRanges.map((range) => (
             <span key={range.label} className="flex items-center gap-1.5">
-              <i
-                className="size-2.5 rounded-full"
-                style={{ background: range.color }}
-              />
+              <MapPin className="size-3.5" style={{ color: range.color }} />
               {range.label}
             </span>
           ))}
         </div>
       </div>
+
+      {touring && tourLandmark && (
+        <aside
+          key={tourLandmark.id}
+          className="landmark-tour-card absolute bottom-24 left-4 right-4 z-20 overflow-hidden rounded-[26px] border border-white/75 bg-white/95 shadow-[0_28px_80px_rgba(15,45,39,.3)] backdrop-blur-xl md:bottom-auto md:left-auto md:right-7 md:top-1/2 md:w-[390px] md:-translate-y-1/2"
+        >
+          <div className="h-1.5" style={{ background: tourLandmark.color }} />
+          <div className="p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <span
+                className="grid size-12 shrink-0 place-items-center rounded-2xl text-2xl text-white shadow-lg"
+                style={{ background: tourLandmark.color }}
+              >
+                {tourLandmark.glyph}
+              </span>
+              <div>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#168a77]">
+                  Parada del recorrido
+                </p>
+                <h2 className="mt-1 text-2xl font-medium tracking-[-0.035em]">
+                  {tourLandmark.shortName}
+                </h2>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-[#526762]">
+              {tourLandmark.fact}
+            </p>
+            <div className="mt-4 rounded-2xl bg-[#edf7f4] p-4 text-sm leading-relaxed text-[#285047]">
+              <strong className="font-semibold">Clave valuatoria:</strong>{' '}
+              {tourLandmark.valuationLens}
+            </div>
+            <Button
+              className="mt-4 w-full rounded-xl bg-[#123e36] text-white hover:bg-[#0b5748]"
+              onClick={() => {
+                setTouring(false);
+                setActiveLandmarkId(tourLandmark.id);
+              }}
+            >
+              <Trophy className="size-4" /> Abrir mini reto
+            </Button>
+          </div>
+        </aside>
+      )}
+
+      {touring && tourAppraisal && (
+        <aside
+          key={tourAppraisal.id}
+          className="landmark-tour-card absolute bottom-24 left-4 right-4 z-20 overflow-hidden rounded-[26px] border border-white/75 bg-white/95 shadow-[0_28px_80px_rgba(15,45,39,.3)] backdrop-blur-xl md:bottom-auto md:left-auto md:right-7 md:top-1/2 md:w-[390px] md:-translate-y-1/2"
+        >
+          <div className="h-1.5" style={{ background: colorForValue(tourAppraisal.valor) }} />
+          <div className="p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <span
+                className="grid size-12 shrink-0 place-items-center rounded-2xl text-white shadow-lg"
+                style={{ background: colorForValue(tourAppraisal.valor) }}
+              >
+                <Building2 className="size-6" />
+              </span>
+              <div>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#168a77]">
+                  Parada de avalúo
+                </p>
+                <h2 className="mt-1 text-2xl font-medium tracking-[-0.035em]">
+                  {tourAppraisal.tipo}
+                </h2>
+                <p className="mt-1 text-sm text-[#61736f]">
+                  {tourAppraisal.barrio} · {tourAppraisal.municipio}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-[#526762]">
+              {tourAppraisal.descripcion}
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-[#edf7f4] p-4">
+              <div>
+                <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.13em] text-[#66807a]">
+                  Valor comercial
+                </span>
+                <strong className="mt-1 block text-sm font-semibold text-[#183c35]">
+                  {formatMoney(tourAppraisal.valor)}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.13em] text-[#66807a]">
+                  Valor por m²
+                </span>
+                <strong className="mt-1 block text-sm font-semibold text-[#183c35]">
+                  {tourAppraisal.valorMetroCuadrado
+                    ? formatMoney(tourAppraisal.valorMetroCuadrado)
+                    : 'Sin dato'}
+                </strong>
+              </div>
+            </div>
+            <Button
+              className="mt-4 w-full rounded-xl bg-[#123e36] text-white hover:bg-[#0b5748]"
+              onClick={() => {
+                const group = groups.find((item) =>
+                  item.records.some((record) => record.id === tourAppraisal.id),
+                );
+                if (!group) return;
+                setTouring(false);
+                setRecordIndex(
+                  Math.max(
+                    0,
+                    group.records.findIndex((record) => record.id === tourAppraisal.id),
+                  ),
+                );
+                setSelectedKey(group.key);
+                setViewMode('menu');
+              }}
+            >
+              <BrainCircuit className="size-4" /> Explorar este avalúo
+            </Button>
+          </div>
+        </aside>
+      )}
 
       {!ready && !introOpen && (
         <div className="absolute inset-0 z-20 grid place-items-center bg-[#e9efed]">
@@ -527,64 +716,169 @@ export default function Home() {
         </div>
       )}
 
-      <Sheet
+      <Dialog
         open={Boolean(selected && selectedGroup)}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedKey(null);
-            setViewMode('quiz');
+            setViewMode('menu');
           }
         }}
       >
-        <SheetContent
-          className="w-[min(96vw,640px)] border-l-white/70 bg-white/98 p-0 text-[#102723] backdrop-blur-xl sm:max-w-[640px]"
+        <DialogContent
+          className="max-h-[92dvh] w-[min(95vw,960px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[960px]"
           aria-describedby="appraisal-description"
         >
           {selected && selectedGroup && (
-            viewMode === 'quiz' ? (
+            viewMode === 'menu' ? (
+              <div className="grid max-h-[92dvh] overflow-y-auto lg:grid-cols-[0.9fr_1.1fr]">
+                <section className="bg-[#eef5f3] p-5 sm:p-7">
+                  <FacadePhoto
+                    key={`${selected.id}:${selected.foto ?? ''}`}
+                    src={selected.foto}
+                    images={selected.imagenes}
+                    barrio={selected.barrio}
+                    className="mb-0"
+                    eager
+                  />
+                  <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#61736f]">
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ background: colorForValue(selected.valor) }}
+                    />
+                    {selected.tipo} · {selected.uso}
+                  </div>
+                  <p className="mt-2 text-2xl font-medium tracking-[-0.04em]">
+                    {selected.municipio ? `${selected.municipio} · ` : ''}{selected.barrio}
+                  </p>
+                  <p className="mt-1 text-sm text-[#61736f]">
+                    {formatMoney(selected.valor)}
+                  </p>
+                </section>
+
+                <section className="p-6 sm:p-9">
+                  <DialogHeader>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#168a77]">
+                      Punto de avalúo
+                    </p>
+                    <DialogTitle className="pr-9 text-3xl font-medium leading-tight tracking-[-0.045em] sm:text-4xl">
+                      ¿Qué quieres explorar?
+                    </DialogTitle>
+                    <DialogDescription id="appraisal-description" className="text-base leading-relaxed">
+                      Elige un reto de conocimiento o consulta directamente la ficha anonimizada.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-7 grid gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('quiz')}
+                      className="group flex items-center gap-4 rounded-2xl border border-[#b8ded4] bg-[#e9f8f3] p-5 text-left transition hover:-translate-y-0.5 hover:border-[#24a87d] hover:shadow-lg"
+                    >
+                      <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#168a77] text-white shadow-md">
+                        <BrainCircuit className="size-6" />
+                      </span>
+                      <span>
+                        <strong className="block text-lg font-semibold text-[#123e36]">Iniciar reto de trivia</strong>
+                        <span className="mt-1 block text-sm text-[#526762]">Pon a prueba tu lectura del inmueble y su contexto.</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('details')}
+                      className="group flex items-center gap-4 rounded-2xl border border-[#dbe5e2] bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#6aa79a] hover:shadow-lg"
+                    >
+                      <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#173c35] text-white shadow-md">
+                        <ClipboardList className="size-6" />
+                      </span>
+                      <span>
+                        <strong className="block text-lg font-semibold text-[#123e36]">Ver ficha del avalúo</strong>
+                        <span className="mt-1 block text-sm text-[#526762]">Consulta áreas, régimen, fecha y valor comercial.</span>
+                      </span>
+                    </button>
+                  </div>
+
+                  {selectedGroup.records.length > 1 && (
+                    <div className="mt-7 flex items-center justify-between rounded-2xl bg-[#f4f7f6] p-2">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setRecordIndex((recordIndex - 1 + selectedGroup.records.length) % selectedGroup.records.length)}
+                      >
+                        <ChevronLeft /> Anterior
+                      </Button>
+                      <span className="text-sm text-[#61736f]">{recordIndex + 1} de {selectedGroup.records.length}</span>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setRecordIndex((recordIndex + 1) % selectedGroup.records.length)}
+                      >
+                        Siguiente <ChevronRight />
+                      </Button>
+                    </div>
+                  )}
+                </section>
+              </div>
+            ) : viewMode === 'quiz' ? (
               <>
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Trivia de avalúos en {selected.barrio}</SheetTitle>
-                  <SheetDescription id="appraisal-description">
-                    Una pregunta interactiva antes de revelar la ficha del inmueble.
-                  </SheetDescription>
-                </SheetHeader>
-                <AppraisalTrivia
-                  key={selected.id}
-                  record={selected}
-                  onReveal={() => setViewMode('details')}
-                />
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Trivia de avalúos en {selected.barrio}</DialogTitle>
+                  <DialogDescription id="appraisal-description">Reto interactivo del inmueble.</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[92dvh] overflow-y-auto">
+                  <div className="sticky top-0 z-10 border-b border-[#dbe5e2] bg-white/95 px-5 py-3 backdrop-blur-md">
+                    <Button variant="ghost" onClick={() => setViewMode('menu')}>
+                      <ChevronLeft /> Volver a opciones
+                    </Button>
+                  </div>
+                  <AppraisalTrivia
+                    key={selected.id}
+                    record={selected}
+                    onReveal={() => setViewMode('details')}
+                  />
+                </div>
               </>
             ) : (
-              <>
-              <SheetHeader className="border-b border-[#dbe5e2] px-6 pb-5 pt-7">
+              <div className="max-h-[92dvh] overflow-y-auto">
+              <DialogHeader className="border-b border-[#dbe5e2] px-6 pb-5 pt-7 sm:px-8">
                 <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">
                   <span
                     className="size-2 rounded-full"
                     style={{ background: colorForValue(selected.valor) }}
                   />
-                  Ficha revelada
+                  Ficha del avalúo
                 </div>
-                <SheetTitle className="pr-8 text-3xl font-medium tracking-[-0.04em]">
+                <DialogTitle className="pr-8 text-3xl font-medium tracking-[-0.04em]">
                   {selected.barrio}
-                </SheetTitle>
-                <SheetDescription
+                </DialogTitle>
+                <DialogDescription
                   id="appraisal-description"
                   className="text-base"
                 >
                   {selected.tipo[0] + selected.tipo.slice(1).toLowerCase()} ·{' '}
                   {selected.uso}
-                </SheetDescription>
-              </SheetHeader>
+                </DialogDescription>
+              </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto px-6 py-6">
-                <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} barrio={selected.barrio} />
+              <div className="grid gap-7 px-6 py-6 sm:px-8 lg:grid-cols-[0.8fr_1.2fr]">
+                <div>
+                  <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} images={selected.imagenes} barrio={selected.barrio} className="mb-4" />
+                  <Button variant="outline" className="w-full rounded-xl" onClick={() => setViewMode('menu')}>
+                    <ChevronLeft /> Volver a opciones
+                  </Button>
+                </div>
+                <div>
                 <p className="text-sm text-[#61736f]">Valor comercial</p>
                 <p className="mt-1 text-[clamp(1.8rem,7vw,2.7rem)] font-medium tracking-[-0.055em] text-[#102723]">
                   {formatMoney(selected.valor)}
                 </p>
+                <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#b8ded4] bg-[#e9f8f3] px-4 py-3 text-[#123e36]">
+                  <BadgeDollarSign className="size-5 text-[#168a77]" />
+                  <span><strong>{formatMoney(selected.valorMetroCuadrado ?? 0)}</strong> por m²</span>
+                </div>
                 <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#dbe5e2]">
                   {[
+                    ['Municipio', selected.municipio || 'Medellín'],
+                    ['Dirección', selected.direccion || 'Ubicación referencial'],
                     ['Área privada', formatArea(selected.areaPrivada)],
                     ['Área construida', formatArea(selected.areaConstruida)],
                     ['Área de terreno', formatArea(selected.areaTerreno, selected.unidad.toLowerCase() === 'ha' ? 'ha' : selected.unidad.toLowerCase() === 'm2' ? 'm²' : selected.unidad || 'm²')],
@@ -602,10 +896,30 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+                {selected.descripcion && (
+                  <section className="mt-6 rounded-2xl border border-[#dbe5e2] bg-[#f6f9f8] p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#168a77]">Descripción del inmueble</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-[#526762]">{selected.descripcion}</p>
+                  </section>
+                )}
+                {selected.metodologia && (
+                  <section className="mt-4 rounded-2xl border border-[#d7dce9] bg-[#f6f7fb] p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#4f6287]">Metodología valuatoria</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-[#526762]">{selected.metodologia}</p>
+                  </section>
+                )}
+                {selected.caracteristicas && selected.caracteristicas.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {selected.caracteristicas.map((item) => (
+                      <span key={item} className="rounded-full border border-[#cddbd7] bg-white px-3 py-1.5 text-xs font-medium text-[#526762]">{item}</span>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-5 text-xs leading-relaxed text-[#70807c]">
-                  Información anonimizada para exhibición. No se muestran
-                  cliente, folio ni dirección exacta.
+                  Información técnica para exhibición. Se omiten nombres de
+                  clientes, identificaciones, matrículas y datos de contacto.
                 </p>
+                </div>
               </div>
 
               {selectedGroup.records.length > 1 && (
@@ -620,7 +934,7 @@ export default function Home() {
                           (recordIndex - 1 + selectedGroup.records.length) %
                             selectedGroup.records.length,
                         );
-                        setViewMode('quiz');
+                        setViewMode('menu');
                       }
                     }
                   >
@@ -638,7 +952,7 @@ export default function Home() {
                         setRecordIndex(
                           (recordIndex + 1) % selectedGroup.records.length,
                         );
-                        setViewMode('quiz');
+                        setViewMode('menu');
                       }
                     }
                   >
@@ -646,11 +960,50 @@ export default function Home() {
                   </Button>
                 </div>
               )}
-              </>
+              </div>
             )
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={landmarkDirectoryOpen} onOpenChange={setLandmarkDirectoryOpen}>
+        <DialogContent
+          className="max-h-[92dvh] w-[min(96vw,1180px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[1180px]"
+          aria-describedby="landmark-directory-description"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>Hitos y puntos de interés de Medellín</DialogTitle>
+            <DialogDescription id="landmark-directory-description">
+              Lista de lugares representativos para ubicarlos en el mapa y abrir su desafío territorial.
+            </DialogDescription>
+          </DialogHeader>
+          <LandmarkDirectory landmarks={landmarks} onSelect={exploreLandmark} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(activeLandmark)}
+        onOpenChange={(open) => {
+          if (!open) setActiveLandmarkId(null);
+        }}
+      >
+        <DialogContent
+          className="max-h-[92dvh] w-[min(95vw,980px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[980px]"
+          aria-describedby="landmark-description"
+        >
+          {activeLandmark && (
+            <>
+              <DialogHeader className="sr-only">
+                <DialogTitle>{activeLandmark.name}</DialogTitle>
+                <DialogDescription id="landmark-description">
+                  Dato territorial y mini reto de conocimiento sobre Medellín.
+                </DialogDescription>
+              </DialogHeader>
+              <LandmarkChallenge key={activeLandmark.id} landmark={activeLandmark} />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

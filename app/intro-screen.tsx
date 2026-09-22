@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Building2,
   Gamepad2,
+  MapPin,
   MapPinned,
   MousePointer2,
   Sparkles,
@@ -29,8 +30,8 @@ export function IntroScreen({
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute -left-20 -top-28 size-[26rem] rounded-full border border-[#16947d]/15 bg-[#75d9c3]/20 blur-2xl" />
         <div className="absolute -bottom-40 right-[-5rem] size-[34rem] rounded-full border border-[#168a77]/15 bg-[#b6e6da]/45 blur-3xl" />
-        <div className="absolute right-[8%] top-[12%] size-20 rounded-full border border-[#00b7ff]/50 bg-[radial-gradient(circle_at_30%_25%,#ffffff_0%,#7de6ff_18%,#16bcff_45%,#08799f_72%,transparent_74%)] opacity-70 shadow-[0_0_42px_rgba(22,188,255,.45)]" />
-        <div className="absolute bottom-[14%] left-[7%] size-14 rounded-full border border-[#ff5da3]/45 bg-[radial-gradient(circle_at_30%_25%,#ffffff_0%,#ffb0d0_18%,#ff398b_48%,#9b1453_72%,transparent_74%)] opacity-60 shadow-[0_0_38px_rgba(255,57,139,.36)]" />
+        <MapPin className="absolute right-[8%] top-[12%] size-20 fill-[#16bcff] text-white opacity-70 drop-shadow-[0_16px_18px_rgba(22,188,255,.35)]" />
+        <MapPin className="absolute bottom-[14%] left-[7%] size-14 fill-[#ff398b] text-white opacity-60 drop-shadow-[0_14px_16px_rgba(255,57,139,.3)]" />
         <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(22,138,119,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(22,138,119,.18)_1px,transparent_1px)] [background-size:44px_44px]" />
       </div>
 
@@ -89,7 +90,7 @@ export function IntroScreen({
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#1b8f7b]"><MapPinned className="size-5" /></span>
                     <div>
                       <h2 className="font-semibold">Explora el mapa 3D</h2>
-                      <p className="mt-1 text-sm leading-relaxed text-[#c5ddd8]">Muévete entre edificios y encuentra las esferas de colores.</p>
+                      <p className="mt-1 text-sm leading-relaxed text-[#c5ddd8]">Muévete entre edificios y encuentra los pines de colores y los hitos territoriales.</p>
                     </div>
                   </div>
                 </div>
@@ -98,7 +99,7 @@ export function IntroScreen({
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#187da0]"><Building2 className="size-5" /></span>
                     <div>
                       <h2 className="font-semibold">Descubre cada inmueble</h2>
-                      <p className="mt-1 text-sm leading-relaxed text-[#c5ddd8]">Cada esfera representa un avalúo con fotografía de fachada y datos no identificadores.</p>
+                      <p className="mt-1 text-sm leading-relaxed text-[#c5ddd8]">Cada pin representa un avalúo con fotografía de fachada y datos no identificadores.</p>
                     </div>
                   </div>
                 </div>

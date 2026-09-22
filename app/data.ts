@@ -18,6 +18,14 @@ export type Appraisal = {
   uso: string;
   sector: string;
   foto: string;
+  municipio?: string;
+  direccion?: string;
+  valorMetroCuadrado?: number;
+  descripcion?: string;
+  metodologia?: string;
+  caracteristicas?: string[];
+  imagenes?: string[];
+  categoria?: 'convencional' | 'especial';
 };
 
 // FID del Excel, verificado contra los atributos del SHP antes de la importación.
