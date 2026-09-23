@@ -60,6 +60,8 @@ const cityView = {
   pitch: 58,
   bearing: -24,
 };
+const TOUR_CARD_VISIBLE_MS = 21_100;
+const TOUR_STOP_INTERVAL_MS = 22_300;
 const valueRanges = [
   { label: 'Menos de $4.000 M', max: 4_000_000_000, color: '#00edb0' },
   { label: '$4.000 M a menos de $10.000 M', max: 10_000_000_000, color: '#16bcff' },
@@ -469,11 +471,11 @@ export default function Home() {
         window.setTimeout(() => {
           setTourLandmarkId(null);
           setTourAppraisalId(null);
-        }, 6100),
+        }, TOUR_CARD_VISIBLE_MS),
         window.setTimeout(() => {
           tourPositionRef.current.stopIndex += 1;
           visit();
-        }, 7300),
+        }, TOUR_STOP_INTERVAL_MS),
       );
     };
     visit();

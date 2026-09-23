@@ -42,6 +42,8 @@ assert.match(pageSource, /const isAppraisalStop = position\.stopIndex % 2 === 0/
 assert.match(pageSource, /resumeTourAfterQuiz/);
 assert.match(pageSource, /tourPositionRef\.current\.stopIndex \+= 1/);
 assert.match(pageSource, /onResumeTour=\{resumeTourAfterQuiz\}/);
+assert.match(pageSource, /const TOUR_CARD_VISIBLE_MS = 21_100/);
+assert.match(pageSource, /const TOUR_STOP_INTERVAL_MS = 22_300/);
 assert.match(pageSource, /Parada de avalúo/);
 assert.match(pageSource, /Parada del recorrido/);
 const source = ts.createSourceFile('page.tsx', pageSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
