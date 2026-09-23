@@ -43,6 +43,7 @@ import { AppraisalTrivia } from './trivia';
 import { IntroScreen } from './intro-screen';
 import { LandmarkChallenge } from './landmark-challenge';
 import { LandmarkDirectory } from './landmark-directory';
+import { AppraisalDirectory } from './appraisal-directory';
 import { landmarks, type Landmark } from './landmarks';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -145,6 +146,7 @@ export default function Home() {
   const [tourLandmarkId, setTourLandmarkId] = useState<string | null>(null);
   const [tourAppraisalId, setTourAppraisalId] = useState<string | null>(null);
   const [landmarkDirectoryOpen, setLandmarkDirectoryOpen] = useState(false);
+  const [appraisalDirectoryOpen, setAppraisalDirectoryOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
   const groups = useMemo<AppraisalGroup[]>(() => {
@@ -477,6 +479,7 @@ export default function Home() {
     setSelectedKey(null);
     setActiveLandmarkId(null);
     setLandmarkDirectoryOpen(false);
+    setAppraisalDirectoryOpen(false);
     setViewMode('menu');
     setTouring((value) => !value);
   };
@@ -488,6 +491,7 @@ export default function Home() {
     setSelectedKey(null);
     setActiveLandmarkId(null);
     setLandmarkDirectoryOpen(false);
+    setAppraisalDirectoryOpen(false);
     setViewMode('menu');
     mapRef.current?.flyTo({ ...cityView, duration: 1200 });
   };
@@ -506,6 +510,31 @@ export default function Home() {
       pitch: landmark.pitch,
       bearing: landmark.bearing,
       duration: 1400,
+    });
+  };
+
+  const exploreAppraisal = (appraisal: Appraisal) => {
+    const group = groups.find((item) =>
+      item.records.some((record) => record.id === appraisal.id),
+    );
+    if (!group) return;
+    setAppraisalDirectoryOpen(false);
+    setLandmarkDirectoryOpen(false);
+    setTouring(false);
+    setTourLandmarkId(null);
+    setTourAppraisalId(null);
+    setActiveLandmarkId(null);
+    setSelectedKey(group.key);
+    setRecordIndex(
+      Math.max(0, group.records.findIndex((record) => record.id === appraisal.id)),
+    );
+    setViewMode('menu');
+    mapRef.current?.flyTo({
+      center: [group.lng, group.lat],
+      zoom: 17.2,
+      pitch: 66,
+      bearing: -18,
+      duration: 1200,
     });
   };
 
@@ -586,8 +615,26 @@ export default function Home() {
           onClick={() => {
             setTouring(false);
             setTourLandmarkId(null);
+            setTourAppraisalId(null);
             setSelectedKey(null);
             setActiveLandmarkId(null);
+            setLandmarkDirectoryOpen(false);
+            setAppraisalDirectoryOpen(true);
+          }}
+        >
+          <ClipboardList className="size-5" /> Explorar {appraisals.length} avalúos
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 rounded-xl border-white/90 bg-white/92 px-4 text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723]"
+          onClick={() => {
+            setTouring(false);
+            setTourLandmarkId(null);
+            setTourAppraisalId(null);
+            setSelectedKey(null);
+            setActiveLandmarkId(null);
+            setAppraisalDirectoryOpen(false);
             setLandmarkDirectoryOpen(true);
           }}
         >
@@ -1020,6 +1067,21 @@ export default function Home() {
             </DialogDescription>
           </DialogHeader>
           <LandmarkDirectory landmarks={landmarks} onSelect={exploreLandmark} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={appraisalDirectoryOpen} onOpenChange={setAppraisalDirectoryOpen}>
+        <DialogContent
+          className="max-h-[92dvh] w-[min(96vw,1180px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[1180px]"
+          aria-describedby="appraisal-directory-description"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>Directorio de avalúos disponibles</DialogTitle>
+            <DialogDescription id="appraisal-directory-description">
+              Lista de inmuebles para ubicarlos en el mapa y abrir su experiencia interactiva.
+            </DialogDescription>
+          </DialogHeader>
+          <AppraisalDirectory appraisals={appraisals} onSelect={exploreAppraisal} />
         </DialogContent>
       </Dialog>
 

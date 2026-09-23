@@ -235,12 +235,12 @@
       "/special-appraisals/special-07/detail-2.jpg"
     ],
     "categoria": "especial",
-    "descripcion": "Inmueble esquinero con dos sótanos y dos niveles sobre rasante, destinado a locales industriales, oficinas y almacenamiento.",
+    "descripcion": "Edificio esquinero de oficinas y uso comercial, con espacios interiores amplios y áreas de estacionamiento.",
     "metodologia": "Comparación de suelo, costo de reposición depreciado para las construcciones y contraste mediante capitalización de rentas.",
     "caracteristicas": [
-      "Dos sótanos",
-      "Uso mixto industrial-comercial",
-      "Lote esquinero"
+      "Edificio de oficinas y uso comercial",
+      "Espacios interiores amplios",
+      "Implantación esquinera"
     ],
     "direccion": "Carrera 57 No. 74-80, Urbanización Valle Sur"
   },
@@ -448,8 +448,8 @@
     "descripcion": "Predio rural de gran extensión, con paisaje abierto y vocación agropecuaria dentro del corredor oriental del territorio metropolitano.",
     "metodologia": "Comparación de predios rurales y contraste residual, con ajustes por tamaño, acceso, topografía, uso permitido y condiciones del entorno.",
     "caracteristicas": [
-      "Más de 34 hectáreas",
-      "Paisaje rural",
+      "Paisaje rural abierto",
+      "Cobertura vegetal predominante",
       "Vocación agropecuaria"
     ],
     "direccion": "Hacienda El Paraíso, vereda Vilachuaga"

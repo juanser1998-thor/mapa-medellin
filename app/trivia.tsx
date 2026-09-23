@@ -56,7 +56,7 @@ type AreaDatum = {
 
 type FeedbackState = 'correct' | 'incorrect' | 'timeout' | null;
 
-const QUESTION_SECONDS = 15;
+const QUESTION_SECONDS = 20;
 const correctMessages = [
   '¡Boom! Sos una máquina 🔥',
   '¡Clave! Ojo de experto ✨',
@@ -548,6 +548,50 @@ function comparisonQuestionFor(record: Appraisal): TriviaQuestion | null {
   };
 }
 
+function areaQuestionFor(record: Appraisal): TriviaQuestion {
+  const area = primaryArea(record);
+  if (record.id === 'special-10' || record.id === 'special-13') {
+    return {
+      eyebrow: 'Analiza con rigor',
+      prompt: '¿Qué información permite confirmar con precisión el área de este terreno?',
+      choices: deterministicShuffle<Choice>(
+        [
+          {
+            id: 'area-source-correct',
+            label: 'Plano, levantamiento o ficha catastral verificada',
+            correct: true,
+          },
+          {
+            id: 'area-source-photos',
+            label: 'Solo las fotografías de la galería',
+            correct: false,
+          },
+          {
+            id: 'area-source-neighbors',
+            label: 'La altura de los edificios cercanos',
+            correct: false,
+          },
+          {
+            id: 'area-source-color',
+            label: 'El color y la cobertura del suelo',
+            correct: false,
+          },
+        ],
+        `${record.id}:area-source`,
+      ),
+      fact: `${area.label} registrada: ${formatArea(area.value)}.`,
+      lesson: 'Sin escala ni información técnica, una fotografía no permite determinar el área con precisión.',
+    };
+  }
+  return {
+    eyebrow: 'Estima el espacio',
+    prompt: `¿En qué rango está su ${area.label.toLocaleLowerCase('es-CO')}?`,
+    choices: metricRangeChoices(record, 'area'),
+    fact: `${area.label} registrada: ${formatArea(area.value)}.`,
+    lesson: 'El área influye, pero ubicación, uso y mercado también modifican el valor.',
+  };
+}
+
 function buildQuestionPool(record: Appraisal): TriviaQuestion[] {
   const area = primaryArea(record);
   const squareMeter = metricValue(record, 'squareMeter');
@@ -555,13 +599,7 @@ function buildQuestionPool(record: Appraisal): TriviaQuestion[] {
   const comparison = comparisonQuestionFor(record);
   const questions: TriviaQuestion[] = [
     attributeQuestionFor(record),
-    {
-      eyebrow: 'Estima el espacio',
-      prompt: `¿En qué rango está su ${area.label.toLocaleLowerCase('es-CO')}?`,
-      choices: metricRangeChoices(record, 'area'),
-      fact: `${area.label} registrada: ${formatArea(area.value)}.`,
-      lesson: 'El área influye, pero ubicación, uso y mercado también modifican el valor.',
-    },
+    areaQuestionFor(record),
     {
       eyebrow: 'Piensa como avaluador',
       prompt: '¿En qué rango está el valor por m²?',
