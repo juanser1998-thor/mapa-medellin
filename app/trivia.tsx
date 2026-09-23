@@ -12,6 +12,7 @@ import {
   Layers3,
   MapPin,
   RotateCcw,
+  Route,
   Scale,
   Sparkles,
   Trophy,
@@ -707,9 +708,11 @@ function QuizChoice({
 export function AppraisalTrivia({
   record,
   onReveal,
+  onResumeTour,
 }: {
   record: Appraisal;
   onReveal: () => void;
+  onResumeTour?: () => void;
 }) {
   const questions = useMemo(() => {
     const pool = buildQuestionPool(record);
@@ -931,9 +934,19 @@ export function AppraisalTrivia({
           </p>
         </div>
         <div className="grid gap-3">
+          {onResumeTour && (
+            <Button
+              size="lg"
+              className="h-14 rounded-xl bg-[#123e36] text-base font-semibold text-white shadow-[0_10px_24px_rgba(18,62,54,.22)] hover:bg-[#0b5748]"
+              onClick={onResumeTour}
+            >
+              Volver al recorrido <Route className="size-5" />
+            </Button>
+          )}
           <Button
             size="lg"
-            className="h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
+            variant={onResumeTour ? 'outline' : 'default'}
+            className={`h-14 rounded-xl text-base font-semibold ${onResumeTour ? 'border-[#9bcfc2] bg-white text-[#137f6d] hover:bg-[#edf8f5] hover:text-[#0d695a]' : 'bg-[#137f6d] text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]'}`}
             onClick={onReveal}
           >
             Revelar ficha completa <Sparkles className="size-5" />

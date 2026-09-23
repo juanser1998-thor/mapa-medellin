@@ -136,6 +136,11 @@ function formatArea(value: number | null, unit = 'm²') {
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const tourPositionRef = useRef({
+    stopIndex: 0,
+    appraisalIndex: 0,
+    landmarkIndex: 0,
+  });
   const [ready, setReady] = useState(false);
   const [introOpen, setIntroOpen] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -147,6 +152,7 @@ export default function Home() {
   const [tourAppraisalId, setTourAppraisalId] = useState<string | null>(null);
   const [landmarkDirectoryOpen, setLandmarkDirectoryOpen] = useState(false);
   const [appraisalDirectoryOpen, setAppraisalDirectoryOpen] = useState(false);
+  const [returnToTourAfterQuiz, setReturnToTourAfterQuiz] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
   const groups = useMemo<AppraisalGroup[]>(() => {
@@ -364,6 +370,7 @@ export default function Home() {
         setViewMode('menu');
         setSelectedKey(key);
         setActiveLandmarkId(null);
+        setReturnToTourAfterQuiz(false);
         setTouring(false);
         map.flyTo({
           center: [group.lng, group.lat],
@@ -427,27 +434,26 @@ export default function Home() {
       setTourAppraisalId(null);
       return;
     }
-    let stopIndex = 0;
-    let appraisalIndex = 0;
-    let landmarkIndex = 0;
     const timers: number[] = [];
     const visit = () => {
-      const isAppraisalStop = stopIndex % 2 === 0;
+      const position = tourPositionRef.current;
+      const isAppraisalStop = position.stopIndex % 2 === 0;
 
       if (isAppraisalStop) {
-        const stop = appraisals[appraisalIndex % appraisals.length];
+        const stop = appraisals[position.appraisalIndex % appraisals.length];
         setTourLandmarkId(null);
         setTourAppraisalId(stop.id);
         mapRef.current?.flyTo({
           center: [stop.lng, stop.lat],
           zoom: 17.2,
           pitch: 66,
-          bearing: appraisalIndex % 2 === 0 ? -18 : 24,
+          bearing: position.appraisalIndex % 2 === 0 ? -18 : 24,
           duration: 2300,
         });
-        appraisalIndex = (appraisalIndex + 1) % appraisals.length;
+        position.appraisalIndex =
+          (position.appraisalIndex + 1) % appraisals.length;
       } else {
-        const stop = landmarks[landmarkIndex % landmarks.length];
+        const stop = landmarks[position.landmarkIndex % landmarks.length];
         setTourAppraisalId(null);
         setTourLandmarkId(stop.id);
         mapRef.current?.flyTo({
@@ -457,7 +463,8 @@ export default function Home() {
           bearing: stop.bearing,
           duration: 2300,
         });
-        landmarkIndex = (landmarkIndex + 1) % landmarks.length;
+        position.landmarkIndex =
+          (position.landmarkIndex + 1) % landmarks.length;
       }
 
       timers.push(
@@ -466,7 +473,7 @@ export default function Home() {
           setTourAppraisalId(null);
         }, 6100),
         window.setTimeout(() => {
-          stopIndex += 1;
+          tourPositionRef.current.stopIndex += 1;
           visit();
         }, 7300),
       );
@@ -476,15 +483,22 @@ export default function Home() {
   }, [touring]);
 
   const toggleTour = () => {
+    if (touring) tourPositionRef.current.stopIndex += 1;
     setSelectedKey(null);
     setActiveLandmarkId(null);
     setLandmarkDirectoryOpen(false);
     setAppraisalDirectoryOpen(false);
+    setReturnToTourAfterQuiz(false);
     setViewMode('menu');
     setTouring((value) => !value);
   };
 
   const resetView = () => {
+    tourPositionRef.current = {
+      stopIndex: 0,
+      appraisalIndex: 0,
+      landmarkIndex: 0,
+    };
     setTouring(false);
     setTourLandmarkId(null);
     setTourAppraisalId(null);
@@ -492,6 +506,7 @@ export default function Home() {
     setActiveLandmarkId(null);
     setLandmarkDirectoryOpen(false);
     setAppraisalDirectoryOpen(false);
+    setReturnToTourAfterQuiz(false);
     setViewMode('menu');
     mapRef.current?.flyTo({ ...cityView, duration: 1200 });
   };
@@ -502,6 +517,7 @@ export default function Home() {
     setTourLandmarkId(null);
     setTourAppraisalId(null);
     setSelectedKey(null);
+    setReturnToTourAfterQuiz(false);
     setViewMode('menu');
     setActiveLandmarkId(landmark.id);
     mapRef.current?.flyTo({
@@ -524,6 +540,7 @@ export default function Home() {
     setTourLandmarkId(null);
     setTourAppraisalId(null);
     setActiveLandmarkId(null);
+    setReturnToTourAfterQuiz(false);
     setSelectedKey(group.key);
     setRecordIndex(
       Math.max(0, group.records.findIndex((record) => record.id === appraisal.id)),
@@ -536,6 +553,14 @@ export default function Home() {
       bearing: -18,
       duration: 1200,
     });
+  };
+
+  const resumeTourAfterQuiz = () => {
+    setSelectedKey(null);
+    setActiveLandmarkId(null);
+    setViewMode('menu');
+    setReturnToTourAfterQuiz(false);
+    setTouring(true);
   };
 
   return (
@@ -779,7 +804,9 @@ export default function Home() {
                   item.records.some((record) => record.id === tourAppraisal.id),
                 );
                 if (!group) return;
+                tourPositionRef.current.stopIndex += 1;
                 setTouring(false);
+                setReturnToTourAfterQuiz(true);
                 setRecordIndex(
                   Math.max(
                     0,
@@ -811,6 +838,7 @@ export default function Home() {
           if (!open) {
             setSelectedKey(null);
             setViewMode('menu');
+            setReturnToTourAfterQuiz(false);
           }
         }}
       >
@@ -923,6 +951,9 @@ export default function Home() {
                     key={selected.id}
                     record={selected}
                     onReveal={() => setViewMode('details')}
+                    onResumeTour={
+                      returnToTourAfterQuiz ? resumeTourAfterQuiz : undefined
+                    }
                   />
                 </div>
               </>

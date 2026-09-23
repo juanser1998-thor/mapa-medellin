@@ -38,7 +38,9 @@ assert.deepEqual(
   { NPH: 10, PH: 8 },
 );
 const pageSource = fs.readFileSync('app/page.tsx', 'utf8');
-assert.match(pageSource, /const isAppraisalStop = stopIndex % 2 === 0/);
+assert.match(pageSource, /const isAppraisalStop = position\.stopIndex % 2 === 0/);
+assert.match(pageSource, /resumeTourAfterQuiz/);
+assert.match(pageSource, /tourPositionRef\.current\.stopIndex \+= 1/);
 assert.match(pageSource, /Parada de avalúo/);
 assert.match(pageSource, /Parada del recorrido/);
 const source = ts.createSourceFile('page.tsx', pageSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
