@@ -152,7 +152,6 @@ export default function Home() {
   const [tourAppraisalId, setTourAppraisalId] = useState<string | null>(null);
   const [landmarkDirectoryOpen, setLandmarkDirectoryOpen] = useState(false);
   const [appraisalDirectoryOpen, setAppraisalDirectoryOpen] = useState(false);
-  const [returnToTourAfterQuiz, setReturnToTourAfterQuiz] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
   const groups = useMemo<AppraisalGroup[]>(() => {
@@ -370,7 +369,6 @@ export default function Home() {
         setViewMode('menu');
         setSelectedKey(key);
         setActiveLandmarkId(null);
-        setReturnToTourAfterQuiz(false);
         setTouring(false);
         map.flyTo({
           center: [group.lng, group.lat],
@@ -488,7 +486,6 @@ export default function Home() {
     setActiveLandmarkId(null);
     setLandmarkDirectoryOpen(false);
     setAppraisalDirectoryOpen(false);
-    setReturnToTourAfterQuiz(false);
     setViewMode('menu');
     setTouring((value) => !value);
   };
@@ -506,7 +503,6 @@ export default function Home() {
     setActiveLandmarkId(null);
     setLandmarkDirectoryOpen(false);
     setAppraisalDirectoryOpen(false);
-    setReturnToTourAfterQuiz(false);
     setViewMode('menu');
     mapRef.current?.flyTo({ ...cityView, duration: 1200 });
   };
@@ -517,7 +513,6 @@ export default function Home() {
     setTourLandmarkId(null);
     setTourAppraisalId(null);
     setSelectedKey(null);
-    setReturnToTourAfterQuiz(false);
     setViewMode('menu');
     setActiveLandmarkId(landmark.id);
     mapRef.current?.flyTo({
@@ -540,7 +535,6 @@ export default function Home() {
     setTourLandmarkId(null);
     setTourAppraisalId(null);
     setActiveLandmarkId(null);
-    setReturnToTourAfterQuiz(false);
     setSelectedKey(group.key);
     setRecordIndex(
       Math.max(0, group.records.findIndex((record) => record.id === appraisal.id)),
@@ -559,7 +553,6 @@ export default function Home() {
     setSelectedKey(null);
     setActiveLandmarkId(null);
     setViewMode('menu');
-    setReturnToTourAfterQuiz(false);
     setTouring(true);
   };
 
@@ -806,7 +799,6 @@ export default function Home() {
                 if (!group) return;
                 tourPositionRef.current.stopIndex += 1;
                 setTouring(false);
-                setReturnToTourAfterQuiz(true);
                 setRecordIndex(
                   Math.max(
                     0,
@@ -838,7 +830,6 @@ export default function Home() {
           if (!open) {
             setSelectedKey(null);
             setViewMode('menu');
-            setReturnToTourAfterQuiz(false);
           }
         }}
       >
@@ -951,9 +942,7 @@ export default function Home() {
                     key={selected.id}
                     record={selected}
                     onReveal={() => setViewMode('details')}
-                    onResumeTour={
-                      returnToTourAfterQuiz ? resumeTourAfterQuiz : undefined
-                    }
+                    onResumeTour={resumeTourAfterQuiz}
                   />
                 </div>
               </>
