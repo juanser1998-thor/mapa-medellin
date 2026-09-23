@@ -24,7 +24,7 @@ export function IntroScreen({
 }) {
   return (
     <section
-      className="absolute inset-0 z-[60] overflow-y-auto bg-[linear-gradient(135deg,#f7fbfa_0%,#e4f4ef_48%,#d8eee8_100%)] text-[#102723]"
+      className="absolute inset-0 z-[60] overflow-y-auto overscroll-contain bg-[linear-gradient(135deg,#f7fbfa_0%,#e4f4ef_48%,#d8eee8_100%)] text-[#102723]"
       aria-label="Introducción al mapa interactivo de avalúos"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -35,28 +35,28 @@ export function IntroScreen({
         <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(22,138,119,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(22,138,119,.18)_1px,transparent_1px)] [background-size:44px_44px]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-full w-full max-w-[1240px] items-center px-5 py-8 sm:px-8 lg:px-12">
-        <div className="grid w-full overflow-hidden rounded-[2rem] border border-white/80 bg-white/84 shadow-[0_30px_90px_rgba(28,77,67,.2)] backdrop-blur-xl lg:grid-cols-[1.1fr_.9fr]">
-          <div className="flex flex-col justify-between p-6 sm:p-9 lg:p-12">
+      <div className="relative mx-auto flex min-h-full w-full max-w-[1240px] items-start px-3 py-3 sm:px-6 sm:py-6 lg:items-center lg:px-12 lg:py-8">
+        <div className="grid w-full overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/84 shadow-[0_30px_90px_rgba(28,77,67,.2)] backdrop-blur-xl sm:rounded-[2rem] lg:grid-cols-[1.1fr_.9fr]">
+          <div className="flex flex-col justify-between p-5 sm:p-7 lg:p-10 xl:p-12">
             <div>
               {/* oxlint-disable-next-line next/no-img-element -- local transparent brand asset */}
               <img
                 src="/appraiser-logo.png"
                 alt="Appraiser"
-                className="h-auto w-[min(72vw,270px)] object-contain object-left"
+                className="h-auto w-[min(64vw,230px)] object-contain object-left sm:w-[min(52vw,270px)]"
               />
-              <div className="mt-9 inline-flex items-center gap-2 rounded-full border border-[#abd8ce] bg-[#eaf8f4] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#137f6d]">
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#abd8ce] bg-[#eaf8f4] px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-[#137f6d] sm:mt-7 sm:text-xs sm:tracking-[0.16em]">
                 <Sparkles className="size-4" /> Experiencia interactiva · Medellín
               </div>
-              <h1 className="mt-5 max-w-2xl text-4xl font-medium leading-[.98] tracking-[-0.055em] text-[#102723] sm:text-5xl lg:text-6xl">
+              <h1 className="mt-4 max-w-2xl text-[clamp(2rem,8vw,3rem)] font-medium leading-[.98] tracking-[-0.055em] text-[#102723] sm:mt-5 lg:text-5xl xl:text-6xl">
                 Descubre la ciudad con ojo de avaluador
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#506d66] sm:text-lg">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#506d66] sm:mt-5 sm:text-base xl:text-lg">
                 Recorre Medellín en 3D, explora avalúos reales y pon a prueba tu criterio con preguntas breves antes de revelar cada ficha.
               </p>
             </div>
 
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="mt-5 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:items-center sm:gap-4">
               <Button
                 size="lg"
                 disabled={!ready}
@@ -80,12 +80,12 @@ export function IntroScreen({
             </div>
           </div>
 
-          <aside className="relative overflow-hidden bg-[#123e36] p-6 text-white sm:p-9 lg:p-12">
+          <aside className="relative overflow-hidden bg-[#123e36] p-5 text-white sm:p-7 lg:p-10 xl:p-12">
             <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full border border-white/10 bg-[#1da78e]/25 blur-2xl" aria-hidden="true" />
             <div className="relative">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8ce6d3]">Cómo funciona</p>
-              <div className="mt-5 grid gap-3">
-                <div className="rounded-2xl border border-white/12 bg-white/[.07] p-4">
+              <div className="mt-4 grid gap-2.5 sm:mt-5 sm:gap-3">
+                <div className="rounded-2xl border border-white/12 bg-white/[.07] p-3 sm:p-4">
                   <div className="flex items-start gap-3">
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#1b8f7b]"><MapPinned className="size-5" /></span>
                     <div>
@@ -94,7 +94,7 @@ export function IntroScreen({
                     </div>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/12 bg-white/[.07] p-4">
+                <div className="rounded-2xl border border-white/12 bg-white/[.07] p-3 sm:p-4">
                   <div className="flex items-start gap-3">
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#187da0]"><Building2 className="size-5" /></span>
                     <div>
@@ -103,7 +103,7 @@ export function IntroScreen({
                     </div>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/12 bg-white/[.07] p-4">
+                <div className="rounded-2xl border border-white/12 bg-white/[.07] p-3 sm:p-4">
                   <div className="flex items-start gap-3">
                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#bb3b75]"><Gamepad2 className="size-5" /></span>
                     <div>
@@ -114,14 +114,14 @@ export function IntroScreen({
                 </div>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-[#75d9c3]/25 bg-[#0d312b] p-5">
+              <div className="mt-4 rounded-2xl border border-[#75d9c3]/25 bg-[#0d312b] p-4 sm:mt-6 sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#75d9c3]">Nuestro propósito</p>
                 <p className="mt-2 text-sm leading-relaxed text-[#d6e9e5]">
                   Acercar la actividad valuatoria de forma visual, entretenida y educativa, mostrando que un avalúo combina datos, mercado y criterio profesional.
                 </p>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-5 text-sm text-[#c5ddd8]">
+              <div className="mt-4 flex flex-wrap gap-4 text-sm text-[#c5ddd8] sm:mt-6 sm:gap-5">
                 <span><strong className="block text-xl font-medium text-white">{appraisalCount.toLocaleString('es-CO')}</strong> avalúos</span>
                 <span><strong className="block text-xl font-medium text-white">{locationCount.toLocaleString('es-CO')}</strong> ubicaciones</span>
                 <span><strong className="block text-xl font-medium text-white">4</strong> preguntas por reto</span>

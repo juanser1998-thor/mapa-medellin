@@ -12,6 +12,7 @@ export function FacadePhoto({
   barrio,
   label,
   className = 'mb-6',
+  imageClassName = 'aspect-[5/4]',
   eager = false,
 }: {
   src?: string;
@@ -19,6 +20,7 @@ export function FacadePhoto({
   barrio: string;
   label?: string;
   className?: string;
+  imageClassName?: string;
   eager?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
@@ -37,7 +39,7 @@ export function FacadePhoto({
     <div className={className}>
       <Dialog>
         <DialogTrigger className="group relative block w-full overflow-hidden rounded-2xl border border-white/90 bg-[#e8efed] text-left shadow-[0_16px_44px_rgba(24,52,47,.18)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#168a77]" aria-label={`Ampliar imagen de un inmueble en ${barrio}`}>
-          <img src={activeSrc} alt={`Imagen ${activeIndex + 1} de un inmueble en ${barrio}`} className="aspect-[5/4] w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} />
+          <img src={activeSrc} alt={`Imagen ${activeIndex + 1} de un inmueble en ${barrio}`} className={`${imageClassName} w-full object-cover transition duration-500 group-hover:scale-[1.025]`} loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} />
           {label && <span className="absolute left-3 top-3 rounded-full border border-white/20 bg-[#07151e]/88 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-white backdrop-blur-md">{label}</span>}
           {gallery.length > 1 && <span className="absolute right-3 top-3 rounded-full border border-white/20 bg-[#07151e]/88 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md">{activeIndex + 1}/{gallery.length}</span>}
           <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-[#06131d] via-[#06131d]/72 to-transparent px-4 pb-4 pt-14 text-white">

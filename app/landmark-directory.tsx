@@ -11,7 +11,7 @@ export function LandmarkDirectory({
   onSelect: (landmark: Landmark) => void;
 }) {
   return (
-    <div className="flex max-h-[92dvh] min-h-0 flex-col bg-[#f4f8f7]">
+    <div className="flex max-h-[calc(100dvh-1rem)] min-h-0 flex-col bg-[#f4f8f7] sm:max-h-[92dvh]">
       <header className="shrink-0 border-b border-[#dce9e5] bg-white px-6 py-6 sm:px-8">
         <div className="flex items-start gap-4 pr-10">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#dff5ef] text-[#147c69]">

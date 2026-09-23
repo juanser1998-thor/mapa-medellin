@@ -841,62 +841,71 @@ export function AppraisalTrivia({
 
   if (phase === 'intro') {
     return (
-      <div className="flex h-full flex-col overflow-y-auto px-6 pb-7 pt-8">
-        <div className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
-          <Eye className="size-4" /> Experiencia interactiva
+      <div className="grid h-full gap-4 overflow-y-auto px-5 py-4 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:items-start md:gap-5 md:overflow-hidden">
+        <div className="min-w-0">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#168a77]">
+            <Eye className="size-4" /> Experiencia interactiva
+          </div>
+          <h2 className="max-w-sm text-3xl font-medium leading-[1.02] tracking-[-0.055em] text-[#102723] sm:text-4xl">
+            ¿Tienes ojo de avaluador?
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-[#506d66] sm:text-base">
+            Supera cuatro preguntas elegidas para este inmueble y descubre qué tan buen ojo tienes.
+          </p>
+          <section className="mt-4 rounded-2xl border border-[#b8ded4] bg-[#edf8f5] p-3 text-left">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">Información para comenzar</p>
+            <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+              <div className="flex items-start gap-2 rounded-xl bg-white/80 p-2.5">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-[#168a77]" />
+                <div><span className="block text-[0.68rem] uppercase tracking-[0.08em] text-[#718982]">Dirección</span><strong className="mt-0.5 block font-medium leading-snug text-[#183c35]">{record.direccion || 'Ubicación referencial disponible en la ficha'}</strong></div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/80 p-2.5">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-[#168a77]" />
+                <div><span className="block text-[0.68rem] uppercase tracking-[0.08em] text-[#718982]">Sector</span><strong className="mt-0.5 block font-medium leading-snug text-[#183c35]">{record.barrio}{record.municipio ? ` · ${record.municipio}` : ''}</strong></div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/80 p-2.5">
+                <Building2 className="mt-0.5 size-4 shrink-0 text-[#168a77]" />
+                <div><span className="block text-[0.68rem] uppercase tracking-[0.08em] text-[#718982]">Tipo de predio</span><strong className="mt-0.5 block font-medium leading-snug text-[#183c35]">{titleCase(record.tipo)}</strong></div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/80 p-2.5">
+                <Layers3 className="mt-0.5 size-4 shrink-0 text-[#168a77]" />
+                <div><span className="block text-[0.68rem] uppercase tracking-[0.08em] text-[#718982]">Régimen</span><strong className="mt-0.5 block font-medium leading-snug text-[#183c35]">{record.regimen === 'PH' ? 'Propiedad horizontal (PH)' : 'No propiedad horizontal (NPH)'}</strong></div>
+              </div>
+            </div>
+          </section>
         </div>
-        <h2 className="max-w-sm text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-[#102723]">
-          ¿Tienes ojo de avaluador?
-        </h2>
-        <p className="mt-3 text-base leading-relaxed text-[#506d66]">
-          Supera cuatro preguntas elegidas para este inmueble y descubre qué tan buen ojo tienes.
-        </p>
-        <section className="mt-5 rounded-2xl border border-[#b8ded4] bg-[#edf8f5] p-4 text-left">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">Información para comenzar</p>
-          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
-              <MapPin className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
-              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Dirección</span><strong className="mt-1 block font-medium text-[#183c35]">{record.direccion || 'Ubicación referencial disponible en la ficha'}</strong></div>
+        <div className="flex min-w-0 flex-col">
+          <FacadePhoto
+            src={record.foto}
+            images={record.imagenes}
+            barrio={record.barrio}
+            className="mb-0"
+            imageClassName="h-[clamp(145px,26dvh,185px)]"
+            eager
+          />
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[#506d66]">
+            <div className="rounded-xl border border-[#c9d9d5] bg-white px-3 py-2 shadow-sm">
+              <strong className="block text-base text-[#183c35]">4</strong> preguntas variadas
             </div>
-            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
-              <MapPin className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
-              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Sector</span><strong className="mt-1 block font-medium text-[#183c35]">{record.barrio}{record.municipio ? ` · ${record.municipio}` : ''}</strong></div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
-              <Building2 className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
-              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Tipo de predio</span><strong className="mt-1 block font-medium text-[#183c35]">{titleCase(record.tipo)}</strong></div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl bg-white/80 p-3">
-              <Layers3 className="mt-0.5 size-5 shrink-0 text-[#168a77]" />
-              <div><span className="block text-xs uppercase tracking-[0.08em] text-[#718982]">Régimen</span><strong className="mt-1 block font-medium text-[#183c35]">{record.regimen === 'PH' ? 'Propiedad horizontal (PH)' : 'No propiedad horizontal (NPH)'}</strong></div>
+            <div className="rounded-xl border border-[#c9d9d5] bg-white px-3 py-2 shadow-sm">
+              <strong className="block text-base text-[#183c35]">1</strong> resultado final
             </div>
           </div>
-        </section>
-        <div className="my-6">
-          <FacadePhoto src={record.foto} images={record.imagenes} barrio={record.barrio} className="mb-0" eager />
+          <Button
+            size="lg"
+            className="mt-3 h-12 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
+            onClick={() => {
+              prepareAudio();
+              setTimeLeft(QUESTION_SECONDS);
+              setPhase('questions');
+            }}
+          >
+            Comenzar reto <ArrowRight className="size-5" />
+          </Button>
+          <p className="mt-2 text-center text-xs text-[#718982]">
+            La ficha completa se revelará al terminar la ronda.
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-sm text-[#506d66]">
-          <div className="rounded-xl border border-[#c9d9d5] bg-white p-3 shadow-sm">
-            <strong className="block text-lg text-[#183c35]">4</strong> preguntas variadas
-          </div>
-          <div className="rounded-xl border border-[#c9d9d5] bg-white p-3 shadow-sm">
-            <strong className="block text-lg text-[#183c35]">1</strong> resultado final
-          </div>
-        </div>
-        <Button
-          size="lg"
-          className="mt-6 h-14 rounded-xl bg-[#137f6d] text-base font-semibold text-white shadow-[0_10px_24px_rgba(19,127,109,.2)] hover:bg-[#0d695a]"
-          onClick={() => {
-            prepareAudio();
-            setTimeLeft(QUESTION_SECONDS);
-            setPhase('questions');
-          }}
-        >
-          Comenzar reto <ArrowRight className="size-5" />
-        </Button>
-        <p className="mt-4 text-center text-xs text-[#718982]">
-          La ficha completa se revelará al terminar la ronda.
-        </p>
       </div>
     );
   }

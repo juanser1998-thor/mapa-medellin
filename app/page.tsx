@@ -557,7 +557,7 @@ export default function Home() {
   };
 
   return (
-    <main className="relative h-dvh min-h-[540px] overflow-hidden bg-[#e9efed] text-[#102723]">
+    <main className="relative h-dvh min-h-0 w-full overflow-hidden bg-[#e9efed] text-[#102723]">
       <div
         ref={containerRef}
         className="absolute inset-0"
@@ -574,29 +574,29 @@ export default function Home() {
         />
       )}
 
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-4 p-4 md:p-7">
-        <div className="pointer-events-auto max-w-[min(88vw,460px)] rounded-2xl border border-white/80 bg-white/92 p-4 shadow-[0_18px_48px_rgba(24,52,47,.16)] backdrop-blur-xl md:p-5">
-          <div className="mb-3 flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#168a77]">
+      <header className={`pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-4 p-3 sm:p-4 md:p-7 ${touring ? 'max-lg:hidden' : ''}`}>
+        <div className="pointer-events-auto w-[min(100%,460px)] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/80 bg-white/92 p-3 shadow-[0_18px_48px_rgba(24,52,47,.16)] backdrop-blur-xl sm:p-4 md:p-5">
+          <div className="mb-2 flex items-center gap-2 text-[0.66rem] font-semibold uppercase tracking-[0.16em] text-[#168a77] sm:mb-3 sm:text-[0.72rem] sm:tracking-[0.18em]">
             <span className="inline-flex size-7 items-center justify-center rounded-full bg-[#d8f5ef] ring-1 ring-[#168a77]/15">
               <Building2 className="size-4" />
             </span>
             Appraiser · Medellín
           </div>
-          <h1 className="text-2xl font-medium tracking-[-0.035em] md:text-3xl">
+          <h1 className="text-xl font-medium tracking-[-0.035em] sm:text-2xl md:text-3xl">
             Avalúos que cuentan la ciudad
           </h1>
-          <p className="mt-1 text-sm text-[#526762] md:text-base">
+          <p className="mt-1 text-xs text-[#526762] max-[420px]:hidden sm:text-sm md:text-base [@media(max-height:620px)]:hidden">
             Toca un pin para elegir entre el reto o la ficha del avalúo.
           </p>
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs sm:mt-4 sm:gap-x-5 sm:gap-y-2 sm:text-sm">
             <span>
-              <strong className="text-lg font-medium">
+              <strong className="text-base font-medium sm:text-lg">
                 {appraisals.length.toLocaleString('es-CO')}
               </strong>{' '}
               avalúos
             </span>
             <span>
-              <strong className="text-lg font-medium">{groups.length.toLocaleString('es-CO')}</strong>{' '}
+              <strong className="text-base font-medium sm:text-lg">{groups.length.toLocaleString('es-CO')}</strong>{' '}
               ubicaciones
             </span>
             <span className="flex items-center gap-1.5 text-[#526762]">
@@ -609,19 +609,29 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="absolute bottom-5 left-4 z-10 flex flex-wrap gap-2 md:bottom-7 md:left-7">
+      <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-3 z-30 grid grid-cols-2 gap-2 sm:bottom-5 sm:left-4 sm:right-auto sm:flex sm:flex-wrap md:bottom-7 md:left-7">
         <Button
           size="lg"
-          className="h-12 rounded-xl border border-[#0b5748]/15 bg-[#123e36] px-4 text-white shadow-[0_10px_28px_rgba(24,52,47,.2)] hover:bg-[#0b5748]"
+          className="group relative h-12 w-full overflow-hidden rounded-xl border border-white/20 bg-[#123e36] px-3 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(24,52,47,.3)] transition-all duration-300 ease-out hover:scale-[1.035] hover:bg-[#0b5748] hover:shadow-[0_18px_42px_rgba(11,87,72,.38)] active:scale-[1.015] sm:h-14 sm:w-auto sm:rounded-2xl sm:px-5 sm:text-base sm:hover:scale-[1.045]"
           onClick={toggleTour}
         >
-          {touring ? <Pause className="size-5" /> : <Play className="size-5" />}
-          {touring ? 'Pausar recorrido' : 'Recorrido 3D'}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-[-45%] -left-[42%] w-[32%] rotate-12 bg-gradient-to-r from-transparent via-white/55 to-transparent opacity-0 blur-[1px] transition-all duration-700 ease-out group-hover:translate-x-[520%] group-hover:opacity-100"
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-3 top-2 size-2 rounded-full bg-white opacity-0 shadow-[0_0_14px_5px_rgba(255,255,255,.7)] transition-all duration-300 group-hover:scale-150 group-hover:opacity-90"
+          />
+          {touring ? <Pause className="relative z-10 size-5" /> : <Play className="relative z-10 size-5" />}
+          <span className="relative z-10">
+            {touring ? 'Pausar recorrido' : 'Recorrido 3D'}
+          </span>
         </Button>
         <Button
           variant="outline"
           size="lg"
-          className="h-12 rounded-xl border-white/90 bg-white/92 px-4 text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723]"
+          className="h-12 w-full rounded-xl border-white/90 bg-white/92 px-3 text-sm text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723] sm:w-auto sm:px-4"
           onClick={resetView}
         >
           <LocateFixed className="size-5" /> Vista general
@@ -629,7 +639,7 @@ export default function Home() {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 rounded-xl border-white/90 bg-white/92 px-4 text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723]"
+          className="h-11 w-full rounded-xl border-white/90 bg-white/92 px-2 text-xs text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723] sm:h-12 sm:w-auto sm:px-4 sm:text-sm"
           onClick={() => {
             setTouring(false);
             setTourLandmarkId(null);
@@ -640,12 +650,14 @@ export default function Home() {
             setAppraisalDirectoryOpen(true);
           }}
         >
-          <ClipboardList className="size-5" /> Explorar {appraisals.length} avalúos
+          <ClipboardList className="size-5" />
+          <span className="sm:hidden">{appraisals.length} avalúos</span>
+          <span className="hidden sm:inline">Explorar {appraisals.length} avalúos</span>
         </Button>
         <Button
           variant="outline"
           size="lg"
-          className="h-12 rounded-xl border-white/90 bg-white/92 px-4 text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723]"
+          className="h-11 w-full rounded-xl border-white/90 bg-white/92 px-2 text-xs text-[#183c35] shadow-lg backdrop-blur-md hover:bg-[#eef8f5] hover:text-[#102723] sm:h-12 sm:w-auto sm:px-4 sm:text-sm"
           onClick={() => {
             setTouring(false);
             setTourLandmarkId(null);
@@ -656,11 +668,13 @@ export default function Home() {
             setLandmarkDirectoryOpen(true);
           }}
         >
-          <Compass className="size-5" /> Explorar {landmarks.length} hitos
+          <Compass className="size-5" />
+          <span className="sm:hidden">{landmarks.length} hitos</span>
+          <span className="hidden sm:inline">Explorar {landmarks.length} hitos</span>
         </Button>
       </div>
 
-      <aside className="absolute bottom-24 right-4 z-10 w-[min(330px,calc(100vw-2rem))] rounded-2xl border border-white/80 bg-white/94 text-xs text-[#183c35] shadow-[0_14px_38px_rgba(24,52,47,.18)] backdrop-blur-md md:bottom-7 md:right-20">
+      <aside className="absolute bottom-[7.5rem] left-3 right-3 z-20 rounded-2xl border border-white/80 bg-white/94 text-xs text-[#183c35] shadow-[0_14px_38px_rgba(24,52,47,.18)] backdrop-blur-md sm:bottom-24 sm:left-auto sm:right-4 sm:w-[min(330px,calc(100vw-2rem))] md:bottom-7 md:right-20">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-3 px-3 py-2.5 font-semibold uppercase tracking-[0.12em] text-[#168a77]"
@@ -701,7 +715,7 @@ export default function Home() {
       {touring && tourLandmark && (
         <aside
           key={tourLandmark.id}
-          className="landmark-tour-card absolute bottom-24 left-4 right-4 z-20 overflow-hidden rounded-[26px] border border-white/75 bg-white/95 shadow-[0_28px_80px_rgba(15,45,39,.3)] backdrop-blur-xl md:bottom-auto md:left-auto md:right-7 md:top-1/2 md:w-[390px] md:-translate-y-1/2"
+          className="landmark-tour-card absolute left-3 right-3 top-4 z-20 max-h-[calc(100dvh-8.5rem)] overflow-y-auto rounded-[22px] border border-white/75 bg-white/95 shadow-[0_28px_80px_rgba(15,45,39,.3)] backdrop-blur-xl sm:left-4 sm:right-4 md:left-auto md:right-7 md:top-20 md:max-h-[calc(100dvh-12rem)] md:w-[390px] md:rounded-[26px] lg:top-24 lg:max-h-[calc(100dvh-11rem)]"
         >
           <div className="h-1.5" style={{ background: tourLandmark.color }} />
           <div className="p-5 sm:p-6">
@@ -744,7 +758,7 @@ export default function Home() {
       {touring && tourAppraisal && (
         <aside
           key={tourAppraisal.id}
-          className="landmark-tour-card absolute bottom-24 left-4 right-4 z-20 overflow-hidden rounded-[26px] border border-white/75 bg-white/95 shadow-[0_28px_80px_rgba(15,45,39,.3)] backdrop-blur-xl md:bottom-auto md:left-auto md:right-7 md:top-1/2 md:w-[390px] md:-translate-y-1/2"
+          className="landmark-tour-card absolute left-3 right-3 top-4 z-20 max-h-[calc(100dvh-8.5rem)] overflow-y-auto rounded-[22px] border border-white/75 bg-white/95 shadow-[0_28px_80px_rgba(15,45,39,.3)] backdrop-blur-xl sm:left-4 sm:right-4 md:left-auto md:right-7 md:top-20 md:max-h-[calc(100dvh-12rem)] md:w-[390px] md:rounded-[26px] lg:top-24 lg:max-h-[calc(100dvh-11rem)]"
         >
           <div className="h-1.5" style={{ background: colorForValue(tourAppraisal.valor) }} />
           <div className="p-5 sm:p-6">
@@ -834,12 +848,12 @@ export default function Home() {
         }}
       >
         <DialogContent
-          className="max-h-[92dvh] w-[min(95vw,960px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[960px]"
+          className="max-h-[calc(100dvh-1rem)] w-[min(95vw,960px)] overflow-hidden rounded-[22px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-h-[92dvh] sm:max-w-[960px] sm:rounded-[28px]"
           aria-describedby="appraisal-description"
         >
           {selected && selectedGroup && (
             viewMode === 'menu' ? (
-              <div className="grid max-h-[92dvh] overflow-y-auto lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="grid max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-h-[92dvh] lg:grid-cols-[0.9fr_1.1fr]">
                 <section className="bg-[#eef5f3] p-5 sm:p-7">
                   <FacadePhoto
                     key={`${selected.id}:${selected.foto ?? ''}`}
@@ -932,7 +946,7 @@ export default function Home() {
                   <DialogTitle>Trivia de avalúos en {selected.barrio}</DialogTitle>
                   <DialogDescription id="appraisal-description">Reto interactivo del inmueble.</DialogDescription>
                 </DialogHeader>
-                <div className="max-h-[92dvh] overflow-y-auto">
+                <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-h-[92dvh]">
                   <div className="sticky top-0 z-10 border-b border-[#dbe5e2] bg-white/95 px-5 py-3 backdrop-blur-md">
                     <Button variant="ghost" onClick={() => setViewMode('menu')}>
                       <ChevronLeft /> Volver a opciones
@@ -947,7 +961,7 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              <div className="max-h-[92dvh] overflow-y-auto">
+              <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-h-[92dvh]">
               <DialogHeader className="border-b border-[#dbe5e2] px-6 pb-5 pt-7 sm:px-8">
                 <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#168a77]">
                   <span
@@ -971,9 +985,14 @@ export default function Home() {
               <div className="grid gap-7 px-6 py-6 sm:px-8 lg:grid-cols-[0.8fr_1.2fr]">
                 <div>
                   <FacadePhoto key={`${selected.id}:${selected.foto ?? ''}`} src={selected.foto} images={selected.imagenes} barrio={selected.barrio} className="mb-4" />
-                  <Button variant="outline" className="w-full rounded-xl" onClick={() => setViewMode('menu')}>
-                    <ChevronLeft /> Volver a opciones
-                  </Button>
+                  <div className="grid gap-2">
+                    <Button className="w-full rounded-xl bg-[#123e36] text-white hover:bg-[#0b5748]" onClick={resumeTourAfterQuiz}>
+                      <Route /> Volver al recorrido
+                    </Button>
+                    <Button variant="outline" className="w-full rounded-xl" onClick={() => setViewMode('menu')}>
+                      <ChevronLeft /> Volver a opciones
+                    </Button>
+                  </div>
                 </div>
                 <div>
                 <p className="text-sm text-[#61736f]">Valor comercial</p>
@@ -1077,7 +1096,7 @@ export default function Home() {
 
       <Dialog open={landmarkDirectoryOpen} onOpenChange={setLandmarkDirectoryOpen}>
         <DialogContent
-          className="max-h-[92dvh] w-[min(96vw,1180px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[1180px]"
+          className="max-h-[calc(100dvh-1rem)] w-[min(96vw,1180px)] overflow-hidden rounded-[22px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-h-[92dvh] sm:max-w-[1180px] sm:rounded-[28px]"
           aria-describedby="landmark-directory-description"
         >
           <DialogHeader className="sr-only">
@@ -1092,7 +1111,7 @@ export default function Home() {
 
       <Dialog open={appraisalDirectoryOpen} onOpenChange={setAppraisalDirectoryOpen}>
         <DialogContent
-          className="max-h-[92dvh] w-[min(96vw,1180px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[1180px]"
+          className="max-h-[calc(100dvh-1rem)] w-[min(96vw,1180px)] overflow-hidden rounded-[22px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-h-[92dvh] sm:max-w-[1180px] sm:rounded-[28px]"
           aria-describedby="appraisal-directory-description"
         >
           <DialogHeader className="sr-only">
@@ -1112,7 +1131,7 @@ export default function Home() {
         }}
       >
         <DialogContent
-          className="max-h-[92dvh] w-[min(95vw,980px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-w-[980px]"
+          className="max-h-[calc(100dvh-1rem)] w-[min(95vw,980px)] overflow-hidden rounded-[22px] border-0 bg-white p-0 text-[#102723] shadow-[0_36px_120px_rgba(8,35,31,.36)] ring-0 sm:max-h-[92dvh] sm:max-w-[980px] sm:rounded-[28px]"
           aria-describedby="landmark-description"
         >
           {activeLandmark && (
